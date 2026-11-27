@@ -90,7 +90,7 @@ def _cmd_produce(args: argparse.Namespace) -> int:
     print(f"produced '{meta['title']}' in {time.perf_counter() - t0:.1f}s; notes: {meta['notes']}")
     for tuning, rep in meta.get("reports", {}).items():
         m = rep["master"]
-        print(f"  {tuning:9s} {m['integrated_lufs']:.1f} LUFS integrated, {m['true_peak_dbtp']:.2f} dBTP")
+        print(f"  {tuning:9s} {m['integrated_lufs']} LUFS integrated, {m['true_peak_dbtp']} dBTP")
     for kind, p in meta["paths"].items():
         if not kind.startswith(("stem_", "midi_just_")):
             print(f"  {kind:24s} {p}")

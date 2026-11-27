@@ -246,7 +246,7 @@ def test_limiter_holds_ceiling_and_leaves_quiet_audio_alone():
     rng = np.random.default_rng(0)
     loud = rng.standard_normal((sr * 2, 2)) * 0.5
     y = limit(loud, sr, ceiling_db=-1.0)
-    assert true_peak_db(y) <= -0.9
+    assert true_peak_db(y) <= -1.0
     quiet = loud * 0.05
     assert np.allclose(limit(quiet, sr, ceiling_db=-1.0), quiet)
 
@@ -270,3 +270,213 @@ def test_compressor_unity_below_threshold():
     assert np.allclose(y, x) and stats["max_gr_db"] == 0.0
     _y2, stats2 = compress(x * 50, sr, threshold_db=-16.0, ratio=2.0)
     assert stats2["max_gr_db"] > 1.0
+
+
+# ----------------------------------------------------------------------------- review regressions
+import subprocess  # noqa: E402
+
+from zeta_music import produce as produce_mod  # noqa: E402
+
+
+def _prod(**kw):
+    return ProduceConfig({"primes": _voice()}, {}, **kw)
+
+
+def test_master_chain_silent_short_and_normal():
+    """Silence raises clearly; audio too short to measure is limited without gain staging (no NaN);
+    a normal tone lands on the target, fade included, at or below the true-peak ceiling."""
+    pytest.importorskip("pyloudnorm")
+    sr = 44100
+    prod = _prod()
+    with pytest.raises(RuntimeError, match="silent"):
+        produce_mod.master_chain(np.zeros((sr, 2)), sr, prod)
+    t = np.arange(int(0.2 * sr)) / sr
+    short = 0.3 * np.stack([np.sin(2 * np.pi * 440 * t)] * 2, axis=1)
+    y, rep = produce_mod.master_chain(short, sr, prod)  # also: fade longer than the audio is clamped
+    assert np.all(np.isfinite(y)) and rep["integrated_lufs"] is None and rep["pre_limiter_gain_db"] == 0.0
+    t = np.arange(3 * sr) / sr
+    tone = 0.05 * np.stack([np.sin(2 * np.pi * 440 * t)] * 2, axis=1)
+    y, rep = produce_mod.master_chain(tone, sr, prod)
+    assert rep["integrated_lufs"] == pytest.approx(-14.0, abs=0.15)  # measured on the faded output
+    assert produce_mod.integrated_lufs(y, sr) == pytest.approx(rep["integrated_lufs"], abs=0.01)
+    assert true_peak_db(y) <= -1.0
+
+
+def test_limiter_ceiling_holds_on_a_short_burst():
+    sr = 44100
+    x = np.zeros((sr // 10, 2))
+    rng = np.random.default_rng(3)
+    x[2000:2010] = rng.uniform(-2.0, 2.0, (10, 2))  # 10-sample burst with intersample overs
+    assert true_peak_db(limit(x, sr, ceiling_db=-1.0)) <= -1.0
+
+
+def test_limiter_gain_has_no_abrupt_steps():
+    sr = 44100
+    t = np.arange(sr) / sr
+    x = np.stack([np.where(t > 0.5, 1.0, 0.1)] * 2, axis=1)  # a step: gain must ramp, not jump
+    g = limit(x, sr, ceiling_db=-6.0)[:, 0] / x[:, 0]
+    assert g.min() <= 10 ** (-6 / 20) + 1e-6
+    assert np.max(np.abs(np.diff(g))) < 0.01  # spread over the 5 ms look-ahead
+
+
+def test_validation_of_bus_and_loudness_parameters():
+    for bad in ({"bus_ratio": 0.0}, {"bus_ratio": 0.5}, {"bus_threshold_db": 3.0}, {"target_lufs": 0.0}):
+        with pytest.raises(ValueError):
+            _prod(**bad)
+    cfg = CompositionConfig("t", [Section("A", 8.0, 1.5, 31.5, 1, 1, loop=8.0)])
+    with pytest.raises(ValueError, match="bus_ratio"):
+        produce_config_from_dict({"voices": {"primes": {"instrument": "sf2"}}, "bus_ratio": 0}, cfg, "x")
+    with pytest.raises(ValueError):
+        compress(np.zeros((100, 2)), 44100, ratio=0.5)
+
+
+def test_plugin_voice_sends_no_program_unless_configured():
+    part = Part("primes", [Note(0.0, 1.0, 220.0, 80)])
+    msgs = part_messages(part, _voice(instrument="plugin:/x.vst3"), "tempered", [0])
+    assert not any(
+        m.type == "program_change" or (m.type == "control_change" and m.control in (0, 32)) for _, _, m in msgs
+    )
+    msgs = part_messages(part, _voice(instrument="plugin:/x.vst3", program=5, bank=130), "tempered", [0])
+    assert [m.program for _, _, m in msgs if m.type == "program_change"] == [5]
+    banks = {m.control: m.value for _, _, m in msgs if m.type == "control_change" and m.control in (0, 32)}
+    assert banks == {0: 1, 32: 2}
+
+
+def test_plugin_render_is_one_continuous_call(monkeypatch):
+    calls = []
+
+    class FakeInstrument:
+        is_instrument = True
+
+        def __call__(self, events, duration, sample_rate, **kw):
+            calls.append((events, duration, kw))
+            out = np.zeros((2, round(duration * sample_rate)), dtype=np.float32)
+            for _, t in events:
+                out[:, int(t * sample_rate)] = 1.0
+            return out
+
+    monkeypatch.setattr(produce_mod, "_load_plugin", lambda *a, **k: FakeInstrument())
+    sr, n = 1000, 3000
+    voice = _voice(instrument="plugin:/x.vst3", load_wait=0.0)
+    audio = produce_mod.render_plugin(Part("primes", [Note(0.5, 0.2, 220.0, 90)]), voice, "tempered", sr, n)
+    assert len(calls) == 1 and calls[0][2].get("reset", True) is True  # warm-up inside the same call
+    assert min(t for _, t in calls[0][0]) >= produce_mod.PLUGIN_PREROLL
+    assert audio.shape == (n, 2) and audio[500, 0] == 1.0  # pre-roll trimmed: the note is back at 0.5 s
+
+
+def test_mixed_tunings_get_separate_ports(tmp_path):
+    tm = TempoMap.constant(112.5, (5, 4))
+    a = Part("primes", [Note(0.0, 1.0, 98.0 * 7 / 4, 90), Note(0.1, 1.0, 98.0 * 5 / 4, 90)])
+    b = Part("bells", [Note(0.0, 1.0, 392.0, 80)])
+    parts = [(_voice(), a), (_voice("bells", tuning="tempered"), b)]
+    mid = mido.MidiFile(write_midi_file(tmp_path / "m.mid", "t", parts, tm, "just"))
+    ports = [[m.port for m in t if m.type == "midi_port"] for t in mid.tracks[1:]]
+    assert ports == [[0], [1]]
+    assert not any(m.type == "pitchwheel" for m in mid.tracks[2])
+
+
+def test_fluidsynth_uses_mma_banks_and_reports_failures(tmp_path, monkeypatch):
+    cmd = produce_mod.fluidsynth_cmd("fluidsynth", tmp_path / "a.sf2", tmp_path / "a.mid", tmp_path / "a.wav", 44100)
+    assert "synth.midi-bank-select=mma" in cmd
+    sf2 = tmp_path / "a.sf2"
+    sf2.write_bytes(b"x")
+
+    def boom(cmd, **kw):
+        raise subprocess.CalledProcessError(1, cmd, stderr=b"fluidsynth: error: bad soundfont")
+
+    monkeypatch.setattr(produce_mod.shutil, "which", lambda _: "fluidsynth")
+    monkeypatch.setattr(produce_mod.subprocess, "run", boom)
+    tm = TempoMap.constant(120.0)
+    with pytest.raises(RuntimeError, match="bad soundfont"):
+        produce_mod.render_sf2(sf2, Part("primes", [Note(0, 1, 220.0, 90)]), _voice(), "just", tm, 44100, 100, tmp_path)
+
+
+def test_sine_voice_follows_tuning_and_sub_level():
+    assert produce_mod.sine_freq(41.2, "tempered") == pytest.approx(41.2034, abs=1e-3)  # E1
+    assert produce_mod.sine_freq(43.0, "tempered") == pytest.approx(43.6535, abs=1e-3)  # snaps to F1
+    assert produce_mod.sine_freq(43.0, "just") == 43.0
+    assert produce_mod.sine_freq(41.2, "just", 12.0) == pytest.approx(82.4)
+    sr = 8000
+    y = produce_mod.render_sine(Part("sub", [Note(0.0, 1.0, 43.0, 127)]), sr, sr, "tempered")
+    spec = np.abs(np.fft.rfft(y[:, 0] * np.hanning(sr), 8 * sr))
+    assert np.fft.rfftfreq(8 * sr, 1 / sr)[np.argmax(spec)] == pytest.approx(43.65, abs=0.1)
+    cfg = CompositionConfig("t", [Section("A", 16.0, 1.5, 31.5, 34, 34, loop=8.0)])
+    muted = ProduceConfig(
+        {"sub": _voice("sub", instrument="builtin:sine")}, {"A": SectionArrangement({"bass": 1, "sub": 0})}
+    )
+    assert produce_mod.sub_part(cfg, muted).notes == []
+    on = ProduceConfig({"sub": _voice("sub", instrument="builtin:sine")}, {"A": SectionArrangement({"bass": 1})})
+    assert produce_mod.sub_part(cfg, on).notes  # defaults to the bass level
+
+
+def test_quantised_duplicates_never_hang(tmp_path):
+    tm = TempoMap.constant(112.5, (5, 4))
+    part = Part("primes", [Note(0.14, 1.0, 220.0, 90), Note(0.15, 1.0, 220.0, 80), Note(0.40, 1.0, 220.0, 70)])
+    mid = mido.MidiFile(write_midi_file(tmp_path / "q.mid", "t", [(_voice(), part)], tm, "tempered", quantise=16))
+    sounding: dict[tuple[int, int], int] = {}
+    ons = offs = 0
+    for m in mid.tracks[1]:
+        if m.type == "note_on" and m.velocity > 0:
+            assert sounding.get((m.channel, m.note), 0) == 0  # previous instance already released
+            sounding[(m.channel, m.note)] = 1
+            ons += 1
+        elif m.type == "note_off":
+            sounding[(m.channel, m.note)] = 0
+            offs += 1
+    assert ons == offs == 2  # the two onsets that snap to one tick merge into one note
+
+
+def test_open_voicing_removes_seconds_and_minor_ninths():
+    keys = [40, 47, 50, 53, 55, 57, 58, 59]  # the first eight zeros, tempered
+    voiced = produce_mod.open_voicing(keys)
+    placed = [k for k in voiced if k is not None]
+    assert voiced[0] == 40 and len(placed) >= 6
+    for i, a in enumerate(placed):
+        for b in placed[i + 1 :]:
+            assert abs(a - b) >= 3 and abs(a - b) != 13
+    assert all(k is None or k % 12 == o % 12 for k, o in zip(voiced, keys, strict=True))  # pitch classes kept
+
+
+def test_produce_end_to_end_without_soundfont(tmp_path):
+    """Builtin and engine voices only: float32 stems, no stem above -1 dBFS, finite master on target."""
+    pytest.importorskip("pyloudnorm")
+    score = tmp_path / "mini.toml"
+    score.write_text(
+        """
+title = "mini"
+sample_rate = 16000
+control_rate = 1000
+drone_base_hz = 82.41
+pluck_base_hz = 98.0
+[[sections]]
+name = "A"
+duration = 8.0
+x_start = 1.5
+x_end = 31.5
+loop = 8.0
+zeros_start = 13
+zeros_end = 13
+[produce]
+tail = 2.0
+[produce.voices.sub]
+instrument = "builtin:sine"
+gain_db = 6.0
+[produce.voices.zeros]
+instrument = "engine"
+send = 0.3
+[produce.arrangement."A"]
+bass = 1.0
+zeros = 1.0
+gain_db = 3.0
+"""
+    )
+    import soundfile as sf
+
+    meta = produce_mod.produce(score, tmp_path / "out", ("tempered",), audio=True)
+    rep = meta["reports"]["tempered"]
+    assert rep["master"]["integrated_lufs"] == pytest.approx(-14.0, abs=0.2)
+    assert rep["master"]["true_peak_dbtp"] <= -1.0
+    for k in ("sub", "zeros", "reverb"):
+        a, _ = sf.read(meta["paths"][f"stem_{k}"])
+        assert np.max(np.abs(a)) <= 10 ** (-1 / 20) + 1e-4
+    assert produce_mod._section_gain_curve(*load_score(score), None, 16000, 16000).dtype == np.float32

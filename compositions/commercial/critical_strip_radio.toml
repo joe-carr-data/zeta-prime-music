@@ -113,6 +113,7 @@ reverb_t60 = 2.4
 bus_threshold_db = -16.0
 bus_ratio = 2.0
 master_air_db = 2.5          # high shelf at 8 kHz on the mix bus
+master_low_db = -3.0         # low shelf at 150 Hz on the mix bus
 # Default sound bank for instrument = "sf2" (overridden by --soundfont or $ZETA_SOUNDFONT).
 soundfont = "~/Downloads/zeta_soundfonts_generaluser/GeneralUser-GS-main/GeneralUser-GS.sf2"
 
@@ -129,61 +130,64 @@ soundfont = "~/Downloads/zeta_soundfonts_generaluser/GeneralUser-GS-main/General
 #           { plugin = "pedalboard:Chorus", params = { rate_hz = 0.4 } }].
 [produce.voices.primes]
 instrument = "sf2"
-program = 24                # Nylon Guitar
+program = 25                # Steel Guitar (brighter than nylon)
 gain_db = -2.0
 send = 0.2
-highpass_hz = 70.0
-presence_db = 4.0
+highpass_hz = 90.0
+presence_db = 0.5
 
 [produce.voices.bells]
 instrument = "sf2"
 program = 8                 # Celeste
-gain_db = -5.0
+gain_db = -4.0
 send = 0.3
-presence_db = 3.0
+presence_db = 5.0
 
 [produce.voices.drone]
 instrument = "sf2"
 program = 49                # Slow Strings
-gain_db = -9.0
+gain_db = -10.0
 send = 0.25
-highpass_hz = 60.0
+highpass_hz = 70.0
+presence_db = 3.0
 
 [produce.voices.bass]
 instrument = "sf2"
 program = 33                # Finger Bass
-gain_db = -6.0
+gain_db = -7.0
 send = 0.0
 lowpass_hz = 2500.0
 
 [produce.voices.sub]
 instrument = "builtin:sine"
-gain_db = -13.0
+gain_db = -15.0
 lowpass_hz = 120.0
 
 [produce.voices.pulse]
 instrument = "sf2"
-bank = 128
-program = 40                # Brush kit
-gain_db = -9.0
+program = 40                # Brush kit (on channel 10, so the drum bank)
+gain_db = -8.0
 send = 0.12
 highpass_hz = 35.0
+presence_db = 3.0
 
 [produce.voices.zeros]
 instrument = "engine"
 gain_db = -12.0
 send = 0.0
-highpass_hz = 150.0
+highpass_hz = 200.0
 
-# Arrangement: per section, a level (0 = silent) for every voice, plus the bass and pulse
-# patterns. Notes themselves always come from the engine.
+# Arrangement: per section, a level (0-4, 0 = silent) for every voice (sub defaults to the bass
+# level), the bass and pulse patterns, and gain_db (mix automation for the section). Notes
+# themselves always come from the engine.
 [produce.arrangement."Intro"]
 primes = 0.0
 bells = 0.0
-drone = 1.0
+drone = 1.2
 bass = 0.0
 pulse = "off"
 zeros = 2.5
+gain_db = 10.5              # lift the intro to within ~10 LU of the chorus
 
 [produce.arrangement."Tuning in"]
 primes = 1.0
@@ -210,6 +214,7 @@ bass = 0.9
 bass_pattern = "pedal"
 pulse = "bar"
 zeros = 1.4
+gain_db = 1.5
 
 [produce.arrangement."Chorus (return)"]
 primes = 1.0

@@ -176,8 +176,8 @@ class VoiceSpec:
 
     name: str
     instrument: str
-    bank: int = 0
-    program: int = 0
+    bank: int | None = None  # None: send no bank select (a plugin keeps the preset in its state)
+    program: int | None = None  # None: send no program change
     state: str | None = None
     plugin_name: str | None = None
     tuning: str | None = None  # force "tempered" for an instrument without per-channel pitch bend
@@ -201,8 +201,12 @@ class VoiceSpec:
             raise ValueError(f"voice {self.name!r}: tuning must be one of {TUNINGS}")
         if not 0.0 <= self.send <= 1.0:
             raise ValueError(f"voice {self.name!r}: send must be in [0, 1]")
-        if not (0 <= self.program <= 127 and 0 <= self.bank <= 16383):
-            raise ValueError(f"voice {self.name!r}: program 0-127, bank 0-16383")
+        if self.program is not None and not 0 <= self.program <= 127:
+            raise ValueError(f"voice {self.name!r}: program must be 0-127")
+        if self.bank is not None and not 0 <= self.bank <= 16383:
+            raise ValueError(f"voice {self.name!r}: bank must be 0-16383")
+        if self.load_wait < 0:
+            raise ValueError(f"voice {self.name!r}: load_wait must be >= 0")
         if (self.name == "zeros") != (self.kind == "engine"):
             raise ValueError("the 'zeros' voice (and only it) uses instrument = 'engine'")
 
@@ -224,6 +228,7 @@ class SectionArrangement:
     levels: dict[str, float]
     bass_pattern: str = "pedal"
     pulse: str = "off"
+    gain_db: float = 0.0  # mix automation for the whole section (applied to every stem)
 
     def level(self, voice: str) -> float:
         if voice == "pulse":
@@ -249,6 +254,32 @@ class ProduceConfig:
     soundfont: str | None = None
     master_fx: tuple[FxSpec, ...] = ()
     master_air_db: float = 0.0  # high shelf at 8 kHz on the mix bus
+    master_low_db: float = 0.0  # low shelf at 150 Hz on the mix bus
+
+    def __post_init__(self) -> None:
+        def num(key: str) -> float:
+            v = getattr(self, key)
+            if isinstance(v, bool) or not isinstance(v, int | float) or not np.isfinite(v):
+                raise ValueError(f"[produce] {key} must be a finite number, got {v!r}")
+            return float(v)
+
+        if num("bus_ratio") < 1.0:
+            raise ValueError("[produce] bus_ratio must be >= 1 (1 = no compression)")
+        if num("bus_threshold_db") > 0.0:
+            raise ValueError("[produce] bus_threshold_db must be <= 0 dBFS")
+        if not -40.0 <= num("target_lufs") <= -5.0:
+            raise ValueError("[produce] target_lufs must be in [-40, -5]")
+        if not -12.0 <= num("true_peak_db") <= 0.0:
+            raise ValueError("[produce] true_peak_db must be in [-12, 0] dBTP")
+        if num("tail") < 0.0:
+            raise ValueError("[produce] tail must be >= 0 s")
+        if num("reverb_t60") < 0.05:
+            raise ValueError("[produce] reverb_t60 must be >= 0.05 s")
+        for key in ("master_air_db", "master_low_db"):
+            if abs(num(key)) > 12.0:
+                raise ValueError(f"[produce] {key} must be within +-12 dB")
+        if num("bpm") <= 0:
+            raise ValueError("[produce] bpm must be > 0")
 
     @property
     def tempo(self) -> TempoMap:
@@ -270,6 +301,7 @@ _PRODUCE_KEYS = {
     "arrangement",
     "master_fx",
     "master_air_db",
+    "master_low_db",
 }
 
 
@@ -314,6 +346,9 @@ def produce_config_from_dict(raw: dict[str, Any], cfg: CompositionConfig, where:
         a = dict(a)
         pulse = a.pop("pulse", "off")
         bass_pattern = a.pop("bass_pattern", "pedal")
+        gain_db = a.pop("gain_db", 0.0)
+        if isinstance(gain_db, bool) or not isinstance(gain_db, int | float) or not -24 <= gain_db <= 24:
+            raise ValueError(f"{where}: section {sec!r}: gain_db must be a number in [-24, 24]")
         if pulse not in PULSE_PATTERNS:
             raise ValueError(f"{where}: section {sec!r}: pulse must be one of {PULSE_PATTERNS}")
         if bass_pattern not in BASS_PATTERNS:
@@ -321,12 +356,18 @@ def produce_config_from_dict(raw: dict[str, Any], cfg: CompositionConfig, where:
         bad = set(a) - set(ROLES)
         if bad:
             raise ValueError(f"{where}: section {sec!r}: unknown voices {sorted(bad)}")
-        arrangement[sec] = SectionArrangement({k: float(x) for k, x in a.items()}, bass_pattern, pulse)
+        levels = {k: float(x) for k, x in a.items()}
+        if any(not 0.0 <= x <= 4.0 for x in levels.values()):
+            raise ValueError(f"{where}: section {sec!r}: voice levels must be in [0, 4]")
+        arrangement[sec] = SectionArrangement(levels, bass_pattern, pulse, float(gain_db))
     master_fx = _fx_list(raw.pop("master_fx", []), f"{where}: [produce]")
     meter = tuple(raw.pop("meter", (5, 4)))
     if len(meter) != 2:
         raise ValueError(f"{where}: meter must be [numerator, denominator]")
-    pc = ProduceConfig(voices, arrangement, meter=(int(meter[0]), int(meter[1])), master_fx=master_fx, **raw)
+    try:
+        pc = ProduceConfig(voices, arrangement, meter=(int(meter[0]), int(meter[1])), master_fx=master_fx, **raw)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{where}: {exc}") from None
     pc.tempo  # validates bpm and metre  # noqa: B018
     if pc.quantise not in (4, 8, 16, 32):
         raise ValueError(f"{where}: quantise must be 4, 8, 16 or 32")
@@ -358,6 +399,7 @@ class Note:
     velocity: int
     pan: float = 0.0  # -1..1, used per note when each note has its own channel
     key: int | None = None  # GM drum key (pulse only)
+    tempered_key: int | None = None  # MIDI key to use in the tempered tuning (re-voiced drone)
 
 
 @dataclass(frozen=True)
@@ -442,6 +484,8 @@ def drone_part(cfg: CompositionConfig, tl: Timeline, gammas: NDArray[np.float64]
     part = Part("drone")
     g = np.asarray(gammas[:DRONE_ZEROS], dtype=float)
     weights = np.abs(complex(0.5, g[0])) / np.abs(0.5 + 1j * g)
+    freqs = cfg.drone_base_hz * g / g[0]
+    voiced = open_voicing([note_for(float(f), "tempered")[0] for f in freqs])
     for name, a, b in section_spans(cfg):
         level = prod.arrangement.get(name, SectionArrangement({})).level("drone")
         if level <= 0:
@@ -450,10 +494,12 @@ def drone_part(cfg: CompositionConfig, tl: Timeline, gammas: NDArray[np.float64]
         n = tl.n_zeros[i0:i1]
         for k in range(g.size):
             mask = n > 0 if k == 0 else n >= k + 1 - 1e-9
+            vk = voiced[k]
+            tk = -1 if vk is None else vk  # -1: dropped from the tempered chord
             for r0, r1 in _runs(mask):
                 t0, t1 = a + r0 / tl.rate, a + r1 / tl.rate
-                f = cfg.drone_base_hz * g[k] / g[0]
-                part.notes.append(Note(t0, t1 - t0, f, _vel((42 + 60 * weights[k] ** 0.5) * level)))
+                vel = _vel((42 + 60 * weights[k] ** 0.5) * level)
+                part.notes.append(Note(t0, t1 - t0, float(freqs[k]), vel, tempered_key=tk))
     # fade-in of the first zero (fractional count < 1) as expression; full expression otherwise
     frac = np.clip(tl.n_zeros, 0.0, 1.0)
     step = int(0.25 * tl.rate)
@@ -466,13 +512,32 @@ def drone_part(cfg: CompositionConfig, tl: Timeline, gammas: NDArray[np.float64]
     return part
 
 
-def bass_part(cfg: CompositionConfig, prod: ProduceConfig) -> Part:
+def open_voicing(keys: Sequence[int], max_key: int = 96) -> list[int | None]:
+    """Re-voice a tempered chord so no two tones form a minor/major second or a minor ninth.
+
+    Tones are taken from the bottom up; a tone that clashes with one already placed moves up an
+    octave until it fits (or is dropped above ``max_key``). The just version is never re-voiced:
+    there the zeros' exact, inharmonic ratios are the point.
+    """
+    placed: list[int] = []
+    out: list[int | None] = [None] * len(keys)
+    for i in sorted(range(len(keys)), key=lambda j: keys[j]):
+        cand = int(keys[i])
+        while any(abs(cand - p) < 3 or abs(cand - p) == 13 for p in placed):
+            cand += 12
+        if cand <= max_key:
+            placed.append(cand)
+            out[i] = cand
+    return out
+
+
+def bass_part(cfg: CompositionConfig, prod: ProduceConfig, voice: str = "bass") -> Part:
     """Bass on the drone's root E (the first zero, an octave down), one note per bar on the grid.
 
     ``pedal``: E1 held for the bar. ``drive``: E1 on beat 1 and E2 on beat 4 (the 3+2 of 5/4);
     the last bar of each 8 s cycle answers with G1, the primes' tonic.
     """
-    part = Part("bass")
+    part = Part(voice)
     tempo = prod.tempo
     beat = 60.0 / prod.bpm * 4.0 / prod.meter[1]
     bar = beat * prod.meter[0]
@@ -481,7 +546,7 @@ def bass_part(cfg: CompositionConfig, prod: ProduceConfig) -> Part:
     bars_per_cycle = _bars_per_cycle(cfg, bar)
     for name, a, b in section_spans(cfg):
         arr = prod.arrangement.get(name, SectionArrangement({}))
-        level = arr.level("bass")
+        level = arr.level(voice)
         if level <= 0:
             continue
         for t in _bar_starts(a, b, bar):
@@ -497,10 +562,10 @@ def bass_part(cfg: CompositionConfig, prod: ProduceConfig) -> Part:
     return part
 
 
-def sub_part(bass: Part) -> Part:
-    """Sine sub under the bass: every bass note folded to below 60 Hz."""
+def sub_part(cfg: CompositionConfig, prod: ProduceConfig) -> Part:
+    """Sine sub: the bass pattern at the sections' ``sub`` level (default: the bass level), folded below 60 Hz."""
     notes = []
-    for nt in bass.notes:
+    for nt in bass_part(cfg, prod, "sub").notes:
         f = nt.freq
         while f > 60.0:
             f /= 2.0
@@ -589,13 +654,12 @@ def build_parts(
 ) -> dict[str, Part]:
     """Every voice's notes, derived from the engine's analysis and the arrangement."""
     parts: dict[str, Part] = {}
-    bass = bass_part(cfg, prod)
     builders: dict[str, Callable[[], Part]] = {
         "primes": lambda: primes_part(events, cfg, prod),
         "bells": lambda: bells_part(events, cfg, prod),
         "drone": lambda: drone_part(cfg, tl, gammas, prod),
-        "bass": lambda: bass,
-        "sub": lambda: sub_part(bass),
+        "bass": lambda: bass_part(cfg, prod),
+        "sub": lambda: sub_part(cfg, prod),
         "pulse": lambda: pulse_part(cfg, prod),
     }
     for name in prod.voices:
@@ -620,6 +684,7 @@ def note_for(freq: float, tuning: str, transpose: float = 0.0) -> tuple[int, int
 
 
 Msg = tuple[float, int, mido.Message]  # (seconds, order at equal time, message)
+MIN_NOTE_S = 2e-3  # shorter notes are dropped (several MIDI ticks at any tempo this module writes)
 
 
 def _allocate(notes: Sequence[tuple[float, float, int]], channels: Sequence[int]) -> list[tuple[int, float, float]]:
@@ -670,10 +735,11 @@ def part_messages(
     q = quantise or (lambda t: t)
     msgs: list[Msg] = []
     for ch in channels:
-        if not part.drums:
+        if voice.bank is not None and not part.drums:  # MSB/LSB (FluidSynth runs in MMA bank mode)
             msgs.append((0.0, -3, mido.Message("control_change", channel=ch, control=0, value=(voice.bank >> 7) & 127)))
             msgs.append((0.0, -3, mido.Message("control_change", channel=ch, control=32, value=voice.bank & 127)))
-        msgs.append((0.0, -2, mido.Message("program_change", channel=ch, program=voice.program)))
+        if voice.program is not None:
+            msgs.append((0.0, -2, mido.Message("program_change", channel=ch, program=voice.program)))
         if tuning == "just" and not part.drums:
             for ctl, val in ((101, 0), (100, 0), (6, int(BEND_RANGE)), (38, 0), (101, 127), (100, 127)):
                 msgs.append((0.0, -2, mido.Message("control_change", channel=ch, control=ctl, value=val)))
@@ -686,19 +752,27 @@ def part_messages(
         on = q(nt.time)
         if part.drums:
             key, bend = int(nt.key or KICK), 0
+        elif tuning == "tempered" and nt.tempered_key is not None:
+            if nt.tempered_key < 0:
+                continue  # tone dropped from the tempered voicing
+            key, bend = int(np.clip(nt.tempered_key + round(voice.transpose), 0, 127)), 0
         else:
             key, bend = note_for(nt.freq, tuning, voice.transpose)
         keyed.append((on, on + nt.dur, key, bend, nt))
     alloc = _allocate([(on, off, key) for on, off, key, _, _ in keyed], list(channels))
     per_note_channel = len(channels) > 1
     for (ch, on, off), (_, _, key, bend, nt) in zip(alloc, keyed, strict=True):
+        if off - on < MIN_NOTE_S:
+            # cut to (almost) nothing by a later note on the same key/channel (e.g. two onsets that
+            # quantise to one tick): drop it, so every note-off precedes the next note-on
+            continue
         if per_note_channel:
             pan = int(np.clip(round(64 + 50 * nt.pan), 0, 127))
             msgs.append((on, 0, mido.Message("control_change", channel=ch, control=10, value=pan)))
         if tuning == "just" and not part.drums:
             msgs.append((on, 1, mido.Message("pitchwheel", channel=ch, pitch=bend)))
         msgs.append((on, 2, mido.Message("note_on", channel=ch, note=key, velocity=nt.velocity)))
-        msgs.append((max(off, on + 1e-3), -1, mido.Message("note_off", channel=ch, note=key, velocity=0)))
+        msgs.append((off, -1, mido.Message("note_off", channel=ch, note=key, velocity=0)))
     used = sorted({c for c, _, _ in alloc}) or list(channels)
     for c in part.controls:
         for ch in used:
@@ -726,9 +800,10 @@ def write_midi_file(
 ) -> Path:
     """Type-1 MIDI: a tempo track (tempo map, metre, section markers) and one track per voice.
 
-    ``just``: every voice track uses all 15 melodic channels (one per sounding note, exact pitch
-    bends) and carries its own MIDI port meta event, so a DAW can route each track to its own
-    instrument. ``tempered``: one channel per voice, drums on channel 10, no bends.
+    Channel plan: every voice track in a multi-track file carries its own MIDI port meta event
+    (port = track slot), so tracks never share a port's channels. A ``just`` voice uses all 15
+    melodic channels of its port (one per sounding note, exact pitch bends); a ``tempered`` voice
+    one channel (the slot's), drums channel 10, no bends.
     """
     mid = mido.MidiFile(type=1, ticks_per_beat=tempo.ppq)
     head = mido.MidiTrack()
@@ -748,7 +823,7 @@ def write_midi_file(
         track = mido.MidiTrack()
         mid.tracks.append(track)
         track.append(mido.MetaMessage("track_name", name=voice.name, time=0))
-        if len(parts) > 1 and (voice.tuning or tuning) == "just" and not voice.drums:
+        if len(parts) > 1:
             track.append(mido.MetaMessage("midi_port", port=slot % 128, time=0))
         msgs = part_messages(part, voice, tuning, _channels_for(voice, tuning, slot), qfn)
         _append_sorted(track, [(round(tempo.ticks(t)), o, m) for t, o, m in msgs])
@@ -785,6 +860,14 @@ def _fit(audio: Audio, n: int) -> Audio:
     return np.concatenate([audio, np.zeros((n - audio.shape[0], 2))])
 
 
+def fluidsynth_cmd(exe: str, sf2: Path, mid: Path, wav: Path, sr: int) -> list[str]:
+    """Offline FluidSynth render: its reverb/chorus off, float output, and MMA bank select
+    (CC0 = MSB, CC32 = LSB) so a configured bank is honoured (the default GS mode ignores CC32)."""
+    cmd = [exe, "-ni", "-q", "-R", "0", "-C", "0", "-g", "0.5", "-r", str(sr), "-O", "float", "-T", "wav"]
+    cmd += ["-o", "synth.polyphony=512", "-o", "synth.midi-bank-select=mma"]
+    return [*cmd, "-F", str(wav), str(sf2), str(mid)]
+
+
 def render_sf2(
     sf2: Path, part: Part, voice: VoiceSpec, tuning: str, tempo: TempoMap, sr: int, n: int, workdir: Path
 ) -> Audio:
@@ -798,10 +881,12 @@ def render_sf2(
         raise FileNotFoundError(f"SoundFont not found: {sf2}")
     mid = write_midi_file(workdir / f"{voice.name}.mid", voice.name, [(voice, part)], tempo, tuning)
     wav = workdir / f"{voice.name}.wav"
-    cmd = [exe, "-ni", "-q", "-R", "0", "-C", "0", "-g", "0.5", "-r", str(sr), "-O", "float", "-T", "wav"]
-    cmd += ["-o", "synth.polyphony=512", "-F", str(wav), str(sf2), str(mid)]
-    subprocess.run(cmd, check=True, capture_output=True)
-    audio, file_sr = sf.read(wav, always_2d=True)
+    try:
+        subprocess.run(fluidsynth_cmd(exe, sf2, mid, wav, sr), check=True, capture_output=True)
+    except subprocess.CalledProcessError as exc:
+        err = (exc.stderr or b"").decode(errors="replace").strip() or f"exit status {exc.returncode}"
+        raise RuntimeError(f"fluidsynth failed rendering voice {voice.name!r}: {err}") from None
+    audio, file_sr = sf.read(wav, always_2d=True, dtype="float32")
     wav.unlink()
     mid.unlink()
     if file_sr != sr:
@@ -833,6 +918,9 @@ def _load_plugin(path: str, plugin_name: str | None, state: str | None, params: 
     return plugin
 
 
+PLUGIN_PREROLL = 2.0  # s of silence rendered (and discarded) before a plugin instrument plays
+
+
 def render_plugin(part: Part, voice: VoiceSpec, tuning: str, sr: int, n: int) -> Audio:
     """Render one voice through an AU/VST3 instrument (pedalboard), restoring its saved state."""
     assert voice.target is not None
@@ -842,24 +930,35 @@ def render_plugin(part: Part, voice: VoiceSpec, tuning: str, sr: int, n: int) ->
     if not getattr(plugin, "is_instrument", False):
         raise ValueError(f"voice {voice.name!r}: {voice.target} is not an instrument plugin")
     # Sample players (Kontakt) stream their library in the background after a state restore:
-    # wait, then run a few seconds of silence through the plugin before the real render.
+    # wait, then render ONE continuous buffer that starts with PLUGIN_PREROLL s of silence (the
+    # warm-up) and trim it off, so nothing resets the plugin between warm-up and piece. No bank or
+    # program message is sent unless the voice configures one, so the restored preset stays.
     time.sleep(voice.load_wait)
-    plugin([], duration=2.0, sample_rate=sr, num_channels=2, buffer_size=512, reset=False)
     msgs = part_messages(part, voice, tuning, _channels_for(voice, tuning, 0))
-    events = [(m.bytes(), float(t)) for t, _, m in msgs]
-    audio = plugin(events, duration=n / sr, sample_rate=sr, num_channels=2, buffer_size=512)
-    return _fit(np.asarray(audio).T, n)
+    events = [(m.bytes(), float(t) + PLUGIN_PREROLL) for t, _, m in msgs]
+    audio = plugin(events, duration=n / sr + PLUGIN_PREROLL, sample_rate=sr, num_channels=2, buffer_size=512)
+    audio = np.asarray(audio, dtype=np.float32).T[round(PLUGIN_PREROLL * sr) :]
+    return _fit(audio, n)
 
 
-def render_sine(part: Part, sr: int, n: int) -> Audio:
+def sine_freq(freq: float, tuning: str, transpose: float = 0.0) -> float:
+    """Frequency a sine voice plays: transposed, and snapped to 12-TET in the tempered tuning."""
+    f = freq * 2.0 ** (transpose / 12.0)
+    if tuning == "tempered":
+        f = 440.0 * 2.0 ** ((round(69 + 12 * np.log2(f / 440.0)) - 69) / 12.0)
+    return float(f)
+
+
+def render_sine(part: Part, sr: int, n: int, tuning: str = "just", transpose: float = 0.0) -> Audio:
     """Pure sine notes with 8 ms attack and 80 ms release (velocity -> amplitude, squared)."""
-    out = np.zeros(n)
+    out = np.zeros(n, dtype=np.float32)
     for nt in part.notes:
+        freq = sine_freq(nt.freq, tuning, transpose)
         a = int(nt.time * sr)
         m = int((nt.dur + 0.08) * sr)
         t = np.arange(m) / sr
         env = np.minimum(1.0, t / 0.008) * np.clip((nt.dur + 0.08 - t) / 0.08, 0.0, 1.0)
-        tone = np.sin(2 * np.pi * nt.freq * t) * env * (nt.velocity / 127.0) ** 2
+        tone = np.sin(2 * np.pi * freq * t) * env * (nt.velocity / 127.0) ** 2
         b = min(a + m, n)
         if a < n:
             out[a:b] += tone[: b - a]
@@ -895,7 +994,13 @@ def lufs_gain_db(measured_lufs: float, target_lufs: float) -> float:
 def integrated_lufs(audio: Audio, sr: int) -> float:
     import pyloudnorm
 
-    return float(pyloudnorm.Meter(sr).integrated_loudness(np.asarray(audio, dtype=np.float64)))
+    x = np.asarray(audio, dtype=np.float64)
+    if x.shape[0] < int(0.4 * sr) or not np.any(x):  # shorter than one gating block, or silent
+        return float("-inf")
+    try:
+        return float(pyloudnorm.Meter(sr).integrated_loudness(x))
+    except ValueError:
+        return float("-inf")
 
 
 def _oversampled_peak(x: NDArray[np.float64], factor: int, chunk: int = 1 << 18) -> NDArray[np.float64]:
@@ -927,6 +1032,10 @@ def compress(
     knee_db: float = 6.0,
 ) -> tuple[Audio, dict[str, float]]:
     """Gentle feed-forward bus compressor (stereo-linked RMS detector, soft knee, 1 ms control rate)."""
+    if not ratio >= 1.0:
+        raise ValueError("compressor ratio must be >= 1")
+    if not (attack > 0 and release > 0 and knee_db >= 0):
+        raise ValueError("compressor attack and release must be > 0 and knee >= 0")
     hop = max(sr // 1000, 1)
     p = np.mean(np.asarray(audio) ** 2, axis=1)
     rms = np.sqrt(np.maximum(uniform_filter1d(p, max(int(0.01 * sr), 1)), 0.0))[::hop]
@@ -936,7 +1045,7 @@ def compress(
     gr = np.where(
         over <= -knee_db / 2,
         0.0,
-        np.where(over >= knee_db / 2, slope * over, slope * (over + knee_db / 2) ** 2 / (2 * knee_db)),
+        np.where(over >= knee_db / 2, slope * over, slope * (over + knee_db / 2) ** 2 / (2 * max(knee_db, 1e-9))),
     )
     ca, cr = np.exp(-hop / (attack * sr)), np.exp(-hop / (release * sr))
     sm = np.empty_like(gr)
@@ -964,6 +1073,10 @@ def limit(
     window (forward in time), then averaged over the same window (backward), which keeps the gain
     at every peak at or below what that peak needs while ramping smoothly into it; a release
     stage lets it recover slowly. Offline, so no delay is introduced.
+
+    The envelope is estimated on the input; the gain itself can shift intersample peaks slightly,
+    so the OUTPUT's true peak is measured and, if it is still above the ceiling, the whole signal
+    is trimmed by the (tiny) excess. The ceiling therefore holds on the output.
     """
     x = np.asarray(audio, dtype=np.float64)
     env = np.max([_oversampled_peak(ch, oversample) for ch in x.T], axis=0)
@@ -972,8 +1085,8 @@ def limit(
     h = max(int(lookahead * sr) // 2, 1)
     size = 2 * h + 1
     fwd = minimum_filter1d(need, size, origin=-h, mode="nearest")  # min over [n, n + 2h]
-    att = uniform_filter1d(fwd, size, origin=h, mode="nearest")  # mean over [n - 2h, n]
-    att = np.minimum(att, fwd)
+    # mean over [n - 2h, n]: every term is a min over a window containing n, so att[n] <= need[n]
+    att = uniform_filter1d(fwd, size, origin=h, mode="nearest")
     block = 32
     nb = int(np.ceil(att.size / block))
     bmin = np.pad(att, (0, nb * block - att.size), constant_values=1.0).reshape(nb, block).min(axis=1)
@@ -984,10 +1097,18 @@ def limit(
         s = min(v, s * r + (1.0 - r))
         rel[i] = s
     g = np.minimum(att, np.interp(np.arange(att.size), np.arange(nb) * block, rel))
-    return x * g[:, None]
+    y = x * g[:, None]
+    for _ in range(3):
+        tp = true_peak_db(y, oversample)
+        if not tp > ceiling_db:
+            break
+        y *= 10 ** ((ceiling_db - tp - 1e-4) / 20)
+    return y
 
 
-def master_chain(mix: Audio, sr: int, prod: ProduceConfig) -> tuple[Audio, dict[str, float]]:
+def master_chain(
+    mix: Audio, sr: int, prod: ProduceConfig, extra_headroom_db: float = 0.0
+) -> tuple[Audio, dict[str, float]]:
     """High-pass, bus compression, gain staging to the loudness target, true-peak limiting."""
     sos = signal.butter(2, 25.0, btype="highpass", fs=sr, output="sos")
     x = signal.sosfiltfilt(sos, mix, axis=0)
@@ -995,27 +1116,31 @@ def master_chain(mix: Audio, sr: int, prod: ProduceConfig) -> tuple[Audio, dict[
         x = apply_fx(x, sr, prod.master_fx)
     if prod.master_air_db:
         x = high_shelf(x, sr, 8000.0, prod.master_air_db)
+    if prod.master_low_db:
+        x = low_shelf(x, sr, 150.0, prod.master_low_db)
+    if not np.any(x):
+        raise RuntimeError("the arrangement is silent: nothing to master (check the voice levels)")
     x, comp = compress(x, sr, prod.bus_threshold_db, prod.bus_ratio)
-    gain = lufs_gain_db(integrated_lufs(x, sr), prod.target_lufs)
-    ceiling = prod.true_peak_db - 0.3
-    y = x
-    for _ in range(6):
+    # the final fade is part of the programme: apply it BEFORE measuring and staging
+    fade = min(int(2.0 * sr), x.shape[0] // 4)
+    if fade > 0:
+        x[-fade:] *= np.cos(np.linspace(0, np.pi / 2, fade))[:, None] ** 2
+    measured = integrated_lufs(x, sr)
+    staged = bool(np.isfinite(measured))  # too short / too quiet to measure: no gain staging
+    gain = lufs_gain_db(measured, prod.target_lufs)
+    ceiling = prod.true_peak_db - 0.3 - extra_headroom_db
+    tries = 8
+    for i in range(tries):
         y = limit(x * 10 ** (gain / 20), sr, ceiling)
         lufs = integrated_lufs(y, sr)
-        tp = true_peak_db(y)
-        if tp > prod.true_peak_db - 0.05:
-            ceiling -= tp - (prod.true_peak_db - 0.1)
-            continue
-        if abs(lufs - prod.target_lufs) < 0.1:
-            break
+        if not staged or not np.isfinite(lufs) or abs(lufs - prod.target_lufs) < 0.1 or i == tries - 1:
+            break  # y was rendered with exactly this gain and ceiling
         gain += prod.target_lufs - lufs
     if not np.all(np.isfinite(y)):
         raise RuntimeError("master contains NaN/inf samples")
-    fade = int(2.0 * sr)
-    y[-fade:] *= np.cos(np.linspace(0, np.pi / 2, fade))[:, None] ** 2
-    lufs, tp = integrated_lufs(y, sr), true_peak_db(y)
+    tp = true_peak_db(y)
     return y, {
-        "integrated_lufs": round(lufs, 2),
+        "integrated_lufs": round(lufs, 2) if np.isfinite(lufs) else None,
         "true_peak_dbtp": round(tp, 2),
         "sample_peak_dbfs": round(float(20 * np.log10(np.max(np.abs(y)))), 2),
         "pre_limiter_gain_db": round(gain, 2),
@@ -1030,6 +1155,31 @@ def _active_rms(audio: Audio, sr: int) -> float:
     w = uniform_filter1d(p, max(int(0.05 * sr), 1))
     act = w > 1e-4 * w.max(initial=0.0)  # frames within 40 dB of the loudest: where the voice plays
     return float(np.sqrt(w[act].mean())) if act.any() else 0.0
+
+
+def low_shelf(audio: Audio, sr: int, freq: float, gain_db: float, slope: float = 0.7) -> Audio:
+    """Zero-phase RBJ low shelf: ``gain_db`` in total (each of the two filtfilt passes gets half)."""
+    if gain_db == 0:
+        return audio
+    a_ = 10 ** (gain_db / 2 / 40)
+    w0 = 2 * np.pi * freq / sr
+    c, sq = np.cos(w0), np.sqrt(a_)
+    alpha = np.sin(w0) / 2 * np.sqrt((a_ + 1 / a_) * (1 / slope - 1) + 2)
+    b = np.array(
+        [
+            a_ * ((a_ + 1) - (a_ - 1) * c + 2 * sq * alpha),
+            2 * a_ * ((a_ - 1) - (a_ + 1) * c),
+            a_ * ((a_ + 1) - (a_ - 1) * c - 2 * sq * alpha),
+        ]
+    )
+    a = np.array(
+        [
+            (a_ + 1) + (a_ - 1) * c + 2 * sq * alpha,
+            -2 * ((a_ - 1) + (a_ + 1) * c),
+            (a_ + 1) + (a_ - 1) * c - 2 * sq * alpha,
+        ]
+    )
+    return signal.filtfilt(b / a[0], a / a[0], audio, axis=0)
 
 
 def high_shelf(audio: Audio, sr: int, freq: float, gain_db: float, slope: float = 0.7) -> Audio:
@@ -1087,14 +1237,19 @@ def _band_report(audio: Audio, sr: int) -> dict[str, float]:
 # Top level
 # --------------------------------------------------------------------------------------
 def _section_gain_curve(
-    cfg: CompositionConfig, prod: ProduceConfig, voice: str, sr: int, n: int
-) -> NDArray[np.float64]:
-    g = np.zeros(n)
+    cfg: CompositionConfig, prod: ProduceConfig, voice: str | None, sr: int, n: int
+) -> NDArray[np.float32]:
+    """Smoothed per-section level of ``voice`` (or, with ``voice=None``, the sections' gain_db automation)."""
+    rate = 200  # control rate; the curve is smooth, interpolated to audio rate at the end
+    m = int(np.ceil(n / sr * rate)) + 1
+    g = np.zeros(m)
     for name, a, b in section_spans(cfg):
-        lvl = prod.arrangement.get(name, SectionArrangement({})).level(voice)
-        g[int(a * sr) : int(b * sr)] = lvl
-    g[int(cfg.duration * sr) :] = g[int(cfg.duration * sr) - 1]
-    return synth.smooth(g, sr, 0.6)
+        arr = prod.arrangement.get(name, SectionArrangement({}))
+        g[int(a * rate) : int(b * rate)] = arr.level(voice) if voice else 10 ** (arr.gain_db / 20)
+    end = min(int(cfg.duration * rate), m - 1)
+    g[end:] = g[end - 1]
+    g = synth.smooth(g, rate, 0.6)
+    return np.interp(np.arange(n) / sr, np.arange(m) / rate, g).astype(np.float32)
 
 
 def produce(
@@ -1155,21 +1310,32 @@ def produce(
     sr = cfg.sample_rate
     n = int((cfg.duration + prod.tail) * sr)
     sf2_default = soundfont or os.environ.get("ZETA_SOUNDFONT") or prod.soundfont
-    engine_stems: dict[str, Audio] | None = None
-    if "zeros" in prod.voices:
+    automation = _section_gain_curve(cfg, prod, None, sr, n)[:, None]
+    zeros_raw: NDArray[np.float32] | None = None
+    if "zeros" in prod.voices:  # the same for every tuning: render once, keep one float32 buffer
         log.info("rendering the engine's zero drone, breath and pole")
-        engine_stems = render(cfg, stems=True).stems
+        engine = render(cfg, stems=True).stems
+        assert engine is not None
+        zeros_raw = np.zeros((n, 2), dtype=np.float32)
+        for k in ("drone", "breath", "pole"):
+            a_ = engine.pop(k)[:n]
+            zeros_raw[: a_.shape[0]] += a_.astype(np.float32)
+            del a_
+        del engine
+        zeros_raw *= _section_gain_curve(cfg, prod, "zeros", sr, n)[:, None]
     reports: dict[str, Any] = {}
+    stem_ceiling = 10 ** (-1.0 / 20)  # no stem file (and not their sum) above -1 dBFS
     for tuning in tunings:
         suffix = "" if tuning == tunings[0] else f"_{tuning}"
-        stems: dict[str, Audio] = {}
+        stems: dict[str, NDArray[np.float32]] = {}
+        send = np.zeros((n, 2), dtype=np.float32)
+        mix = np.zeros((n, 2), dtype=np.float32)
         with tempfile.TemporaryDirectory() as tmp:
             for vname, voice in prod.voices.items():
                 log.info("[%s] rendering %s with %s", tuning, vname, voice.instrument)
                 if voice.kind == "engine":
-                    assert engine_stems is not None
-                    raw = sum(_fit(engine_stems[k], n) for k in ("drone", "breath", "pole"))
-                    raw = raw * _section_gain_curve(cfg, prod, "zeros", sr, n)[:, None]
+                    assert zeros_raw is not None
+                    raw = zeros_raw.astype(np.float64)
                 elif voice.kind == "sf2":
                     sf2 = voice.target or sf2_default
                     if not sf2:
@@ -1178,14 +1344,20 @@ def produce(
                 elif voice.kind == "plugin":
                     raw = render_plugin(parts[vname], voice, tuning, sr, n)
                 else:
-                    raw = render_sine(parts[vname], sr, n)
+                    raw = render_sine(parts[vname], sr, n, voice.tuning or tuning, voice.transpose)
                 raw = apply_fx(raw, sr, voice.fx) if voice.fx else raw
                 rms = _active_rms(raw, sr)
                 norm = (10 ** (-20 / 20)) / rms if rms > 0 else 0.0  # every voice to -20 dBFS active RMS
-                stems[vname] = _filter(raw * norm, sr, voice) * 10 ** (voice.gain_db / 20)
-        send = sum(stems[v] * prod.voices[v].send for v in stems if prod.voices[v].send > 0)
-        if isinstance(send, np.ndarray):
-            stems["reverb"] = synth.reverb(
+                out = _filter(raw * norm, sr, voice).astype(np.float32)
+                del raw
+                out *= np.float32(10 ** (voice.gain_db / 20))
+                out *= automation
+                stems[vname] = out
+                mix += out
+                if voice.send > 0:
+                    send += out * np.float32(voice.send)
+        if np.any(send):
+            wet = synth.reverb(
                 send,
                 sr,
                 np.random.default_rng(cfg.seed + 21),
@@ -1193,34 +1365,53 @@ def produce(
                 predelay=0.03,
                 damping_hz=7000,
                 mix=1.0,
-            )
-        mix = sum(stems.values())
-        assert isinstance(mix, np.ndarray)
-        master, loud = master_chain(mix, sr, prod)
+            ).astype(np.float32)
+            stems["reverb"] = wet
+            mix += wet
+            del wet
+        del send
         wav = out_dir / f"{stem}{suffix}.wav"
-        sf.write(wav, master, sr, subtype="PCM_24")
+        headroom = 0.0
+        for _ in range(4):  # AAC encoding adds intersample overs: re-master with more headroom if needed
+            master, loud = master_chain(mix.astype(np.float64), sr, prod, headroom)
+            sf.write(wav, master, sr, subtype="PCM_24")
+            m4a = _encode_m4a(wav)
+            if not m4a:
+                break
+            tp_m4a = true_peak_db(_decode(m4a, sr, n))
+            loud["m4a_true_peak_dbtp"] = round(tp_m4a, 2)
+            if tp_m4a <= prod.true_peak_db:
+                break
+            headroom += tp_m4a - prod.true_peak_db + 0.1
         paths[f"master_{tuning}_wav"] = str(wav)
-        m4a = _encode_m4a(wav)
         if m4a:
             paths[f"master_{tuning}_m4a"] = str(m4a)
-            loud["m4a_true_peak_dbtp"] = round(true_peak_db(_decode(m4a, sr, n)), 2)
-        dry_peak = float(np.max(np.abs(mix))) or 1.0
-        shared = 10 ** (-3 / 20) / dry_peak  # stems share one gain: they sum to the pre-master mix at -3 dBFS peak
+        # one shared gain for all stems (they sum to the pre-master mix), chosen so that neither the
+        # sum nor any single stem exceeds the stem ceiling
+        peak = max([float(np.max(np.abs(mix)))] + [float(np.max(np.abs(a))) for a in stems.values()])
+        shared = stem_ceiling / peak if peak > 0 else 1.0
         stem_dir = out_dir / "stems"
         stem_stats = {}
-        for k, a in stems.items():
+        for k in list(stems):
+            a = stems.pop(k)
+            a *= np.float32(shared)
             if tuning == tunings[0]:
                 stem_dir.mkdir(exist_ok=True)
                 p = stem_dir / f"{stem}_{k}.{stem_format}"
-                sf.write(p, a * shared, sr, subtype="PCM_24", format=stem_format.upper())
+                sf.write(p, a, sr, subtype="PCM_24", format=stem_format.upper())
                 paths[f"stem_{k}"] = str(p)
-            lu = integrated_lufs(a * shared, sr)
-            stem_stats[k] = {"lufs_at_stem_gain": round(lu, 1) if np.isfinite(lu) else None} | _band_report(a, sr)
-        del stems, mix
+            lu = integrated_lufs(a, sr)
+            stem_stats[k] = {
+                "lufs_at_stem_gain": round(lu, 1) if np.isfinite(lu) else None,
+                "peak_dbfs": round(float(20 * np.log10(np.max(np.abs(a)) + 1e-12)), 2),
+            } | _band_report(a, sr)
+            del a
+        del mix
         sections = {}
         for nme, a, b in section_spans(cfg):
             seg = master[int(a * sr) : int(b * sr)]
-            sections[nme] = round(integrated_lufs(seg, sr), 1)
+            lu = integrated_lufs(seg, sr)
+            sections[nme] = round(lu, 1) if np.isfinite(lu) else None
         reports[tuning] = {"master": loud, "master_spectrum": _band_report(master, sr), "section_lufs": sections}
         reports[tuning]["stems"] = stem_stats
     meta |= {"paths": paths, "reports": reports, "soundfont": str(_expand(sf2_default)) if sf2_default else None}
