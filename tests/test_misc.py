@@ -217,3 +217,10 @@ def test_pluck_decay_at_low_sample_rates(sr, freq):
     """review (P1): at 8 kHz the old 8x cap gave t60 = 0.79 s for a 2.5 s request at 1568 Hz."""
     y = synth.pluck(freq, 3.0, sr, np.random.default_rng(1), t60=2.5)
     assert _fundamental_t60(y, freq, sr) == pytest.approx(2.5, rel=0.1)
+
+
+@pytest.mark.parametrize("sr", [8000, 11025, 16000, 22050, 44100, 48000])
+@pytest.mark.parametrize("freq", [500.0, 1568.0, 2500.0, 3500.0])
+def test_oversampling_never_exceeds_internal_rate_cap(sr, freq):
+    """review: 8 kHz / 2.5 kHz used to pick 64x (512 kHz) despite the 384 kHz cap."""
+    assert sr * synth.oversampling_factor(freq, sr, 2.8) <= synth.MAX_INTERNAL_RATE

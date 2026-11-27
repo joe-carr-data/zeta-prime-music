@@ -68,7 +68,7 @@ loop = 8.0
 zeros_start = 500
 zeros_end = 500
 pluck_gain = 0.0
-drone_gain = 1.25
+drone_gain = 0.5
 breath_gain = 2.2
 
 [[sections]]

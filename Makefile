@@ -13,18 +13,18 @@ test:
 lint:
 	uv run ruff check . && uv run ruff format --check .
 
-$(OUT)/critical_strip.wav:
+$(OUT)/critical_strip.wav: compositions/critical_strip.toml
 	uv run zeta-music -v render compositions/critical_strip.toml -o $(OUT)
 
 render: $(OUT)/critical_strip.wav
 
-$(PROP)/B_prime_pulse.wav:
+$(PROP)/B_prime_pulse.wav: compositions/proposals/prime_pulse.toml
 	uv run zeta-music render compositions/proposals/prime_pulse.toml -o $(PROP) --name B_prime_pulse --no-plot
 
-$(PROP)/F_critical_strip_revised.wav:
+$(PROP)/F_critical_strip_revised.wav: compositions/proposals/critical_strip_revised.toml
 	uv run zeta-music render compositions/proposals/critical_strip_revised.toml -o $(PROP) --name F_critical_strip_revised --no-plot
 
-$(PROP)/C_deep_strip.wav:
+$(PROP)/C_deep_strip.wav: compositions/proposals/deep_strip.toml
 	uv run zeta-music render compositions/proposals/deep_strip.toml -o $(PROP) --name C_deep_strip --no-plot
 
 proposals: render $(PROP)/B_prime_pulse.wav $(PROP)/C_deep_strip.wav $(PROP)/F_critical_strip_revised.wav

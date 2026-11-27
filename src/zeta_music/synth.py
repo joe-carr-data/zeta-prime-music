@@ -75,12 +75,13 @@ def oversampling_factor(freq: float, sr: int, t60: float) -> int:
     monotonically with pitch instead of flickering between neighbouring notes.
     """
     over = 1
-    while sr * over < MAX_INTERNAL_RATE:  # 8x at 44.1/48 kHz; up to 32x at 8-12 kHz
+    while True:  # 8x at 44.1/48 kHz; up to 32x at 8-12 kHz; never above MAX_INTERNAL_RATE
         w0 = 2.0 * np.pi * freq / (sr * over)
         if 10.0 ** (-3.0 / (t60 * freq)) / np.cos(w0 / 2) ** 2 <= MAX_LOOP_GAIN:
-            break
+            return over
+        if sr * over * 2 > MAX_INTERNAL_RATE:
+            return over
         over *= 2
-    return over
 
 
 def pluck(
