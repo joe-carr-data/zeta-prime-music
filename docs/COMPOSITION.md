@@ -1,0 +1,35 @@
+# Critical Strip — composition notes
+
+A ~3½-minute piece generated entirely from the explicit formula. Nothing is hand-placed: every
+note is a peak of the truncated sum ψ'_N(x), and every drone partial is a zero.
+
+## Mappings (and why they are honest)
+
+| Mathematical object | Sound | Rationale |
+|---|---|---|
+| Zero ρ_k = ½ + iγ_k | sine partial at `82.41 Hz · γ_k/γ₁` (γ₁ → E2) | Imag. part = frequency (video, 1:05). Inharmonic: the zeros are *not* a harmonic series. |
+| weight 1/\|ρ_k\| | partial amplitude | literal coefficient of x^ρ/ρ in ψ(x) |
+| cos(γ_k ln x) at the current x | tremolo of partial k | the zero's actual oscillation along the number line |
+| peak of ψ'_N(x) at x* | plucked string (Karplus–Strong) | the "guitar" of the video |
+| peak position x* | pitch = G2 · x*/2^⌊log₂x*⌋ (folded harmonic) | primes become just-intonation intervals: 3 → fifth, 5 → major third, 7 → harmonic 7th, 11 → 11th harmonic… Off-integer peaks are *microtonal* — out of tune until enough zeros are present |
+| peak height (normalised) → salience ≈ Λ(n)/log n | velocity | primes = 1, p² = ½, p³ = ⅓ — prime powers are literally quieter |
+| prime power p^k (k ≥ 2) | FM bell an octave up | the video's "overtone at 4, 8, 16, 9" |
+| peak not at a prime power | "ghost" (dull short pluck) | artefact of truncation; disappears as N grows |
+| ψ'_N(x) itself | breath (band-passed noise × salience²) | the sum, heard |
+| pole at s = 1 (the "1" in ψ') | low sine, E1 | the main term li(x) / x |
+
+## Form
+
+| # | Movement | x | zeros N | idea |
+|---|---|---|---|---|
+| I | Pole | 1.2 → 3.2 | 0 → 1 | silence of the integers; the first zero fades in |
+| II | Adding zeros | bar 1.5 → 31.5, ×12 (8 s each) | 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 200 | the same bar replayed; ghost notes fade, primes come into tune (the video's "add the first 200") |
+| III | Further out | 31.5 → 260 (exponential) | 200 → 500 | accelerando because primes thin only like 1/ln x; register rises |
+| IV | Critical line | bar ×2 | 500 | full chord, maximal clarity |
+| V | Reflection | bar ×4 | 34, 8, 2, 1 | s ↦ 1 − s: zeros are removed, the primes dissolve back into waves |
+
+## Rendering
+
+`make render` → `output/critical_strip.{wav,mid,events.json,score.png}`. 24-bit/44.1 kHz WAV;
+the MIDI file carries per-note pitch bend (±2 semitones, channel rotation) so the microtonal
+ghosts survive into a DAW.
