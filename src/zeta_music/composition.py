@@ -164,6 +164,12 @@ def salience_curve(
     growing bandwidth, Landau's formula gives a spike of height ``≈ Λ(n)/n · I_w / π`` at a
     prime power, so ``S(n) → Λ(n)/log n`` (1 at primes, 1/k at ``p^k``).
 
+    This limit is for FIXED n as the zero height T grows. Gonek's uniform version of Landau's
+    formula has an error term ~ n log(nT) / T relative to the main term, so with a fixed set of
+    zeros far-out primes come out softer. Measured with 500 zeros (T ≈ 811), median S at primes:
+    0.99 for x < 30, 0.92 for 30–100, 0.81 for 100–180, 0.74 for 180–260. The piece keeps this
+    on purpose: primes the zeros can barely resolve really are quieter.
+
     The smooth main term (1) and trivial-zero term ``1/(x(x²−1))`` carry no spikes and are left
     out: they would otherwise dominate as ``I_w → 0``. ``I_w`` is floored at one full (tapered) zero, so
     while the first zero fades in (``N < 1``) the curve fades in proportionally and ``N = 0``

@@ -215,3 +215,16 @@ def test_mix_notes_inplace_matches_copy():
     out = np.zeros_like(p)
     mix_notes(p.copy(), b.copy(), -6.0, -10.0, out=out)
     np.testing.assert_allclose(out, expected)
+
+
+@pytest.mark.parametrize(
+    ("lo", "hi", "median_range"),
+    [(2, 30, (0.95, 1.03)), (30, 100, (0.88, 0.96)), (100, 180, (0.76, 0.86)), (180, 260, (0.70, 0.78))],
+)
+def test_salience_far_field_matches_documented_values(lo, hi, median_range):
+    """review C5: S(n) -> Lambda(n)/log n is a fixed-n limit; with 500 zeros far primes are softer (documented)."""
+    from zeta_music.explicit import primes_upto
+
+    x = np.array([p for p in primes_upto(hi) if p >= lo], dtype=float)
+    s = salience_curve(x, np.full(x.size, 500.0), load_zeros(500))
+    assert median_range[0] <= np.median(s) <= median_range[1]

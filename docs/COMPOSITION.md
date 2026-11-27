@@ -18,6 +18,22 @@ note is a peak of the truncated sum ψ'_N(x), and every drone partial is a zero.
 | ψ'_N(x) itself | breath (band-passed noise × salience²) | the sum, heard |
 | pole at s = 1 (the "1" in ψ') | low sine, E1 | the main term li(x) / x |
 
+## How accurate is "salience"?
+
+Salience is normalised so that, for a fixed n and enough zeros, S(n) → Λ(n)/log n (1 at primes,
+½ at squares). With a fixed number of zeros N (largest ordinate T), the error grows with n
+(Gonek's uniform Landau formula, error ~ n·log(nT)/T). Measured with 500 zeros (T ≈ 811):
+
+| x range | median S at primes | squares |
+|---|---|---|
+| 2–30 | 0.99 (0.96–1.01) | 0.46–0.49 |
+| 30–100 | 0.92 (0.87–0.96) | 0.43 |
+| 100–180 | 0.81 (0.77–0.87) | 0.27–0.34 |
+| 180–260 | 0.74 (0.68–0.77) | — |
+
+So in movement III the primes soften as the sweep runs out towards x = 260, the edge of what
+500 zeros can resolve. This is kept deliberately as part of the music.
+
 ## Form
 
 | # | Movement | x | zeros N | idea |
