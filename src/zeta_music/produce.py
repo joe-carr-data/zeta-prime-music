@@ -1000,6 +1000,10 @@ DEFAULT_CACHE_DIR = Path("output/cache")
 _ENGINE_SOURCES = ("composition.py", "synth.py", "explicit.py", "zeros.py", "config.py", "data/zeros.txt")
 
 
+_UMASK = os.umask(0o022)
+os.umask(_UMASK)
+
+
 class RenderError(RuntimeError):
     """A voice failed to render (in this process or in a worker process)."""
 
@@ -1096,6 +1100,7 @@ def _atomic_write(path: Path, write: Callable[[Any], None], mode: str = "wb") ->
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
     try:
+        os.chmod(tmp, 0o666 & ~_UMASK)  # mkstemp creates 0600; give the file the usual permissions
         with os.fdopen(fd, mode) as f:
             write(f)
             f.flush()
