@@ -1,4 +1,4 @@
-"""Command-line interface: ``zeta-music {render,literal,explain,zeros}``."""
+"""Command-line interface: ``zeta-music {render,literal,explain,video,animate,produce,produce-preset,zeros}``."""
 
 from __future__ import annotations
 
@@ -73,6 +73,37 @@ def _cmd_animate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_produce(args: argparse.Namespace) -> int:
+    from .produce import produce
+
+    t0 = time.perf_counter()
+    tunings = ("just", "tempered") if args.tuning == "both" else (args.tuning,)
+    meta = produce(
+        Path(args.score),
+        Path(args.out),
+        tunings,
+        soundfont=args.soundfont,
+        audio=not args.midi_only,
+        name=args.name,
+        stem_format=args.stem_format,
+    )
+    print(f"produced '{meta['title']}' in {time.perf_counter() - t0:.1f}s; notes: {meta['notes']}")
+    for tuning, rep in meta.get("reports", {}).items():
+        m = rep["master"]
+        print(f"  {tuning:9s} {m['integrated_lufs']:.1f} LUFS integrated, {m['true_peak_dbtp']:.2f} dBTP")
+    for kind, p in meta["paths"].items():
+        if not kind.startswith(("stem_", "midi_just_")):
+            print(f"  {kind:24s} {p}")
+    return 0
+
+
+def _cmd_produce_preset(args: argparse.Namespace) -> int:
+    from .produce import save_plugin_state
+
+    print(save_plugin_state(args.plugin, Path(args.out), plugin_name=args.plugin_name, state=args.state))
+    return 0
+
+
 def _cmd_zeros(args: argparse.Namespace) -> int:
     from .zeros import load_zeros
 
@@ -132,6 +163,23 @@ def build_parser() -> argparse.ArgumentParser:
     an.add_argument("--width", type=int, default=960)
     an.add_argument("--fps", type=int, default=24)
     an.set_defaults(func=_cmd_animate)
+
+    pr = sub.add_parser("produce", help="produced version: tempo-mapped MIDI, instruments, stems, mastered WAV/M4A")
+    pr.add_argument("score", help="score TOML with a [produce] table")
+    pr.add_argument("-o", "--out", default="output/commercial")
+    pr.add_argument("--name", help="output file stem (default: score stem)")
+    pr.add_argument("--tuning", choices=["just", "tempered", "both"], default="both", help="audio render(s)")
+    pr.add_argument("--soundfont", help="SoundFont for instrument = 'sf2' voices (else $ZETA_SOUNDFONT or the score's)")
+    pr.add_argument("--midi-only", action="store_true", help="write the MIDI files and event list only")
+    pr.add_argument("--stem-format", choices=["flac", "wav"], default="flac", help="24-bit stems (default flac)")
+    pr.set_defaults(func=_cmd_produce)
+
+    pp = sub.add_parser("produce-preset", help="open an AU/VST3 plugin's editor, then save its state for a score")
+    pp.add_argument("--plugin", required=True, help="path to the .vst3 or .component")
+    pp.add_argument("--plugin-name", help="plugin inside a multi-plugin bundle")
+    pp.add_argument("--state", help="existing state file to start from")
+    pp.add_argument("--out", required=True, help="where to save the plugin state")
+    pp.set_defaults(func=_cmd_produce_preset)
 
     z = sub.add_parser("zeros", help="print the first n nontrivial zeros")
     z.add_argument("n", type=int, nargs="?", default=10)

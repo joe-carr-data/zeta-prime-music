@@ -21,6 +21,10 @@ dependencies = [
 plot = [
     "matplotlib>=3.11.2",
 ]
+produce = [
+    "pedalboard>=0.9.26",
+    "pyloudnorm>=0.2.0",
+]
 
 [project.scripts]
 zeta-music = "zeta_music.cli:main"
@@ -33,6 +37,7 @@ build-backend = "hatchling.build"
 dev = [
     "matplotlib>=3.11.2",
     "mypy>=2.4.1",
+    "pyloudnorm>=0.2.0",
     "pytest>=9.2.0",
     "ruff>=0.17.6",
 ]
