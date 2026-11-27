@@ -182,3 +182,10 @@ def test_midi_sparse_notes_keep_full_length():
 
     notes = allocate_channels([_ev(0.0), _ev(2.0), _ev(4.0, kind="ghost")])
     assert [n[2] - n[1] for n in notes] == [int(1.5 * PPQ), int(1.5 * PPQ), int(0.4 * PPQ)]
+
+
+def test_oversampling_factor_is_monotonic_in_pitch():
+    """review: the factor used to flicker between neighbouring pitches (timbre jumps)."""
+    factors = [synth.oversampling_factor(f, 44100, 2.8) for f in np.arange(100.0, 2500.0, 0.5)]
+    assert factors == sorted(factors)
+    assert set(factors) == {1, 2, 4, 8}

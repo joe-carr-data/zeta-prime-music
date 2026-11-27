@@ -64,6 +64,21 @@ def _ks_loop(freq: float, sr: int, t60: float) -> tuple[int, float, float]:
 MAX_LOOP_GAIN = 0.9999  # |H| <= 1 with equality at DC, so g < 1 keeps every frequency stable
 
 
+def oversampling_factor(freq: float, sr: int, t60: float) -> int:
+    """Smallest of 1/2/4/8 at which the loop can hold ``t60`` for ANY fractional delay.
+
+    Uses the worst case f = 0.5 (|H| = cos^2(w/2), the strongest loss), so the factor rises
+    monotonically with pitch instead of flickering between neighbouring notes.
+    """
+    over = 1
+    while over < 8:
+        w0 = 2.0 * np.pi * freq / (sr * over)
+        if 10.0 ** (-3.0 / (t60 * freq)) / np.cos(w0 / 2) ** 2 <= MAX_LOOP_GAIN:
+            break
+        over *= 2
+    return over
+
+
 def pluck(
     freq: float,
     dur: float,
@@ -82,21 +97,25 @@ def pluck(
     High notes lose more to the loop filter per period than a stable gain can restore, so they
     are synthesised at 2x/4x/8x the sample rate (the per-period loss falls ~ with the square of
     the factor) and decimated. Notes that do not need it are bit-identical to plain KS.
+
+    Trade-off (measured, documented): with a 3-tap loop filter the harmonics' decay relative to
+    the fundamental is fixed by the filter shape, so holding t60 at high pitch necessarily damps
+    upper harmonics less: attack/sustain spectral centroid rises ~1.4-1.7x across each factor
+    boundary (778, 1227, 1929 Hz at 44.1 kHz, t60 2.8 s). The factor is monotonic in pitch (no
+    flicker) and the excitation filter is fixed in output-rate Hz, so only the loop contributes.
     """
     from math import gcd
 
     n = int(dur * sr)
-    over = 1
-    p, f, g = _ks_loop(freq, sr, t60)
-    while g > MAX_LOOP_GAIN and over < 8:
-        over *= 2
-        p, f, g = _ks_loop(freq, sr * over, t60)
+    over = oversampling_factor(freq, sr, t60)
+    p, f, g = _ks_loop(freq, sr * over, t60)
     g = min(g, MAX_LOOP_GAIN)
     sr_int = sr * over
     n_int = n * over
     excitation = rng.uniform(-1.0, 1.0, p + 2)
-    # brighten/darken the initial burst with a one-pole lowpass
-    pole = (1.0 - brightness) * 0.9
+    # brighten/darken the initial burst with a one-pole lowpass whose cutoff is fixed in Hz at
+    # the OUTPUT rate (pole^(1/over) at the internal rate), so oversampling does not brighten it
+    pole = ((1.0 - brightness) * 0.9) ** (1.0 / over)
     excitation = signal.lfilter([1.0 - pole], [1.0, -pole], excitation)
     excitation -= excitation.mean()
     y = np.zeros(n_int + p + 2)
