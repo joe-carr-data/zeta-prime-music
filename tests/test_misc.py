@@ -74,3 +74,40 @@ def test_cli_zeros(capsys):
 
 def test_cli_bad_config(capsys):
     assert main(["render", "does-not-exist.toml"]) == 2
+
+
+SECTION = 'name="a"\nduration=1\nx_start=2\nx_end=3\nzeros_start=1\nzeros_end=2\n'
+
+
+@pytest.mark.parametrize(
+    ("toml", "match"),
+    [
+        ('title="t"\n[[sections]]\n' + SECTION + 'sweep="expo"\n', r"sections\[0\] \('a'\).*sweep must be"),
+        (
+            'title="t"\n[[sections]]\n' + SECTION.replace("duration=1", 'duration="long"'),
+            r"sections\[0\].*duration must be",
+        ),
+        ('title="t"\n[[sections]]\n' + SECTION + "zeros_steps=[3, -1]\n", r"zeros_steps must be a non-negative"),
+        ('title="t"\n[[sections]]\n' + SECTION + "loop=0\n", r"loop must be > 0"),
+        ('title="t"\n[[sections]]\nname="a"\nduration=1\n', r"missing keys"),
+        ('title="t"\nsample_rate=5000\n[[sections]]\n' + SECTION, r"sample_rate must be >= 8000"),
+        ('title="t"\ndrone_max_hz=30000\n[[sections]]\n' + SECTION, r"drone_max_hz.*Nyquist"),
+        ('title="t"\ntaper="kaiser"\n[[sections]]\n' + SECTION, r"taper must be"),
+        ('title="t"\n[[sections]]\n' + SECTION + "[mix]\nreverb_mix=1.5\n", r"\[mix\].*reverb_mix"),
+        ('title="t"\n[[sections]]\n' + SECTION + "[mix]\npeak_db=3\n", r"peak_db must be <= 0"),
+        ('title="t"\n[[sections]]\n' + SECTION + "[mix]\npluck_db=nan\n", r"pluck_db must be a number or -inf"),
+        ("title = \n", r"invalid TOML"),
+    ],
+)
+def test_config_errors_name_the_toml_field(tmp_path, toml, match):
+    """review C9: invalid scores fail at load time with the offending TOML location."""
+    p = tmp_path / "c.toml"
+    p.write_text(toml)
+    with pytest.raises(ValueError, match=match):
+        load_config(p)
+
+
+def test_minus_inf_mutes_a_voice(tmp_path):
+    p = tmp_path / "c.toml"
+    p.write_text('title="t"\n[[sections]]\n' + SECTION + "[mix]\npluck_db=-inf\n")
+    assert load_config(p).mix.pluck_db == float("-inf")

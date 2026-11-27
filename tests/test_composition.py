@@ -118,7 +118,7 @@ def test_descending_sweep_finds_primes():
     from zeta_music.config import CompositionConfig, Section
 
     cfg = CompositionConfig(
-        title="down", sample_rate=8000, control_rate=1000,
+        title="down", sample_rate=8000, control_rate=1000, drone_max_hz=3000.0,
         sections=[Section("down", 6.0, 30.0, 1.6, 150, 150)],
     )  # fmt: skip
     tl = build_timeline(cfg)
@@ -149,7 +149,7 @@ def test_muted_section_never_sounds():
     from zeta_music.config import CompositionConfig, Section
 
     cfg = CompositionConfig(
-        title="mute", sample_rate=8000, control_rate=1000,
+        title="mute", sample_rate=8000, control_rate=1000, drone_max_hz=3000.0,
         sections=[
             Section("muted", 1.0, 1.5, 31.5, 50, 50, pluck_gain=0.0),
             Section("open", 1.0, 1.5, 31.5, 50, 50),
@@ -200,7 +200,7 @@ def test_quiet_section_is_not_muted():
     from zeta_music.config import CompositionConfig, Section
 
     cfg = CompositionConfig(
-        title="quiet", sample_rate=8000, control_rate=1000,
+        title="quiet", sample_rate=8000, control_rate=1000, drone_max_hz=3000.0,
         sections=[Section("quiet", 2.0, 1.5, 31.5, 50, 50, pluck_gain=0.05)],
     )  # fmt: skip
     assert analyse(cfg)[3], "a quiet (not muted) section must still produce events"

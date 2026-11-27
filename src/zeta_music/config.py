@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import math
 import tomllib
-from dataclasses import dataclass, field, fields
+from dataclasses import MISSING, dataclass, field, fields
 from pathlib import Path
 from typing import Any, Literal
 
@@ -37,14 +38,39 @@ class Section:
     breath_gain: float = 1.0
 
     def __post_init__(self) -> None:
+        _finite(self, "duration", "x_start", "x_end", "drone_gain", "pluck_gain", "breath_gain")
         if self.duration <= 0:
-            raise ValueError(f"section {self.name!r}: duration must be > 0")
+            raise ValueError("duration must be > 0")
         if min(self.x_start, self.x_end) <= 1.0:
-            raise ValueError(f"section {self.name!r}: x must stay > 1")
-        if min(self.zeros_start, self.zeros_end) < 0:
-            raise ValueError(f"section {self.name!r}: zero counts must be >= 0")
-        if self.loop is not None and self.loop <= 0:
-            raise ValueError(f"section {self.name!r}: loop must be > 0")
+            raise ValueError("x_start and x_end must be > 1 (the explicit formula lives on x > 1)")
+        if self.sweep not in ("linear", "exp"):
+            raise ValueError(f"sweep must be 'linear' or 'exp', got {self.sweep!r}")
+        for key in ("zeros_start", "zeros_end"):
+            _nonneg_int(self, key, getattr(self, key))
+        if self.zeros_steps is not None:
+            if not self.zeros_steps:
+                raise ValueError("zeros_steps must not be empty (omit it instead)")
+            for v in self.zeros_steps:
+                _nonneg_int(self, "zeros_steps", v)
+        if self.loop is not None:
+            _finite(self, "loop")
+            if self.loop <= 0:
+                raise ValueError("loop must be > 0")
+        for key in ("drone_gain", "pluck_gain", "breath_gain"):
+            if getattr(self, key) < 0:
+                raise ValueError(f"{key} must be >= 0")
+
+
+def _finite(obj: object, *keys: str) -> None:
+    for key in keys:
+        v = getattr(obj, key)
+        if isinstance(v, bool) or not isinstance(v, int | float) or not math.isfinite(v):
+            raise ValueError(f"{key} must be a finite number, got {v!r}")
+
+
+def _nonneg_int(obj: object, key: str, v: object) -> None:
+    if isinstance(v, bool) or not isinstance(v, int) or v < 0:
+        raise ValueError(f"{key} must be a non-negative integer, got {v!r}")
 
 
 @dataclass(frozen=True)
@@ -57,6 +83,19 @@ class MixConfig:
     reverb_mix: float = 0.22
     reverb_t60: float = 3.4
     peak_db: float = -1.0
+
+    def __post_init__(self) -> None:
+        for key in ("drone_db", "pluck_db", "bell_db", "breath_db", "pole_db"):
+            v = getattr(self, key)  # -inf mutes a voice; +inf / NaN are errors
+            if isinstance(v, bool) or not isinstance(v, int | float) or math.isnan(v) or v == math.inf:
+                raise ValueError(f"{key} must be a number or -inf, got {v!r}")
+        _finite(self, "reverb_mix", "reverb_t60", "peak_db")
+        if not 0.0 <= self.reverb_mix <= 1.0:
+            raise ValueError("reverb_mix must be in [0, 1]")
+        if self.reverb_t60 <= 0:
+            raise ValueError("reverb_t60 must be > 0")
+        if self.peak_db > 0:
+            raise ValueError("peak_db must be <= 0 dBFS")
 
 
 @dataclass(frozen=True)
@@ -75,6 +114,32 @@ class CompositionConfig:
     peak_prominence: float = 0.18  # relative to log(x) scale, see composition.detect_events
     mix: MixConfig = field(default_factory=MixConfig)
 
+    def __post_init__(self) -> None:
+        if not self.sections:
+            raise ValueError("at least one section is required")
+        for key in ("sample_rate", "control_rate"):
+            v = getattr(self, key)
+            if isinstance(v, bool) or not isinstance(v, int) or v <= 0:
+                raise ValueError(f"{key} must be a positive integer, got {v!r}")
+        if self.sample_rate < 8000:
+            raise ValueError("sample_rate must be >= 8000 Hz (the breath band needs 250-2500 Hz)")
+        _finite(self, "drone_base_hz", "drone_exponent", "drone_max_hz", "drone_tremolo", "pluck_base_hz")
+        _finite(self, "peak_prominence")
+        nyquist = self.sample_rate / 2
+        for key in ("drone_base_hz", "pluck_base_hz"):
+            if not 0 < getattr(self, key) < nyquist / 16:
+                raise ValueError(f"{key} must be in (0, {nyquist / 16:.0f}) Hz at sample_rate {self.sample_rate}")
+        if not 0 < self.drone_max_hz < nyquist:
+            raise ValueError(f"drone_max_hz must be in (0, {nyquist:.0f}) Hz (Nyquist)")
+        if self.drone_exponent <= 0:
+            raise ValueError("drone_exponent must be > 0")
+        if not 0.0 <= self.drone_tremolo <= 1.0:
+            raise ValueError("drone_tremolo must be in [0, 1]")
+        if self.taper not in ("none", "hann", "gauss", "fejer"):
+            raise ValueError(f"taper must be one of none/hann/gauss/fejer, got {self.taper!r}")
+        if self.peak_prominence <= 0:
+            raise ValueError("peak_prominence must be > 0")
+
     @property
     def duration(self) -> float:
         return sum(s.duration for s in self.sections)
@@ -85,18 +150,38 @@ class CompositionConfig:
         return max(counts, default=0)
 
 
-def _build(cls: type, data: dict[str, Any]) -> Any:
+def _build(cls: type, data: dict[str, Any], where: str) -> Any:
+    """Construct ``cls`` from TOML data; every error names the offending TOML location."""
+    if not isinstance(data, dict):
+        raise ValueError(f"{where}: expected a table")
     known = {f.name for f in fields(cls)}
     unknown = set(data) - known
     if unknown:
-        raise ValueError(f"unknown {cls.__name__} keys: {sorted(unknown)}")
-    return cls(**data)
+        raise ValueError(f"{where}: unknown keys {sorted(unknown)}")
+    required = {f.name for f in fields(cls) if f.default is MISSING and f.default_factory is MISSING}
+    missing = required - set(data)
+    if missing:
+        raise ValueError(f"{where}: missing keys {sorted(missing)}")
+    try:
+        return cls(**data)
+    except (ValueError, TypeError) as exc:
+        raise ValueError(f"{where}: {exc}") from None
 
 
 def load_config(path: str | Path) -> CompositionConfig:
-    raw = tomllib.loads(Path(path).read_text())
-    sections = [_build(Section, s) for s in raw.pop("sections", [])]
-    if not sections:
-        raise ValueError("config needs at least one [[sections]] entry")
-    mix = _build(MixConfig, raw.pop("mix", {}))
-    return _build(CompositionConfig, {**raw, "sections": sections, "mix": mix})
+    path = Path(path)
+    try:
+        raw = tomllib.loads(path.read_text())
+    except tomllib.TOMLDecodeError as exc:
+        raise ValueError(f"{path}: invalid TOML: {exc}") from None
+    raw_sections = raw.pop("sections", [])
+    if not isinstance(raw_sections, list) or not raw_sections:
+        raise ValueError(f"{path}: needs at least one [[sections]] entry")
+    sections = [
+        _build(
+            Section, s, f"{path}: sections[{i}]" + (f" ({s['name']!r})" if isinstance(s, dict) and "name" in s else "")
+        )
+        for i, s in enumerate(raw_sections)
+    ]
+    mix = _build(MixConfig, raw.pop("mix", {}), f"{path}: [mix]")
+    return _build(CompositionConfig, {**raw, "sections": sections, "mix": mix}, str(path))
