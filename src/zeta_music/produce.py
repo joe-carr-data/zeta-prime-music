@@ -189,6 +189,7 @@ class VoiceSpec:
     presence_db: float = 0.0  # high shelf at 3.5 kHz
     load_wait: float = 3.0  # s to let a plugin instrument load its samples before rendering
     fx: tuple[FxSpec, ...] = ()
+    params: dict[str, Any] = field(default_factory=dict)  # plugin instrument parameters (e.g. a Massive patch)
 
     def __post_init__(self) -> None:
         if self.name not in ROLES:
@@ -926,7 +927,7 @@ def render_plugin(part: Part, voice: VoiceSpec, tuning: str, sr: int, n: int) ->
     assert voice.target is not None
     import time
 
-    plugin = _load_plugin(voice.target, voice.plugin_name, voice.state)
+    plugin = _load_plugin(voice.target, voice.plugin_name, voice.state, voice.params)
     if not getattr(plugin, "is_instrument", False):
         raise ValueError(f"voice {voice.name!r}: {voice.target} is not an instrument plugin")
     # Sample players (Kontakt) stream their library in the background after a state restore:

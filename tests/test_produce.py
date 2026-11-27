@@ -480,3 +480,20 @@ gain_db = 3.0
         a, _ = sf.read(meta["paths"][f"stem_{k}"])
         assert np.max(np.abs(a)) <= 10 ** (-1 / 20) + 1e-4
     assert produce_mod._section_gain_curve(*load_score(score), None, 16000, 16000).dtype == np.float32
+
+
+def test_voice_params_reach_plugin_instruments(monkeypatch):
+    """A plugin instrument voice can carry parameter values (e.g. a synth patch) in the score."""
+    from zeta_music import produce
+
+    seen = {}
+
+    def fake_load(path, plugin_name, state, params=None):
+        seen["params"] = params
+        raise RuntimeError("stop after load")
+
+    monkeypatch.setattr(produce, "_load_plugin", fake_load)
+    voice = produce.VoiceSpec(name="drone", instrument="plugin:/x/Massive.vst3", params={"osc2_amp": 55.0})
+    with pytest.raises(RuntimeError, match="stop after load"):
+        produce.render_plugin(None, voice, "tempered", 44100, 44100)
+    assert seen["params"] == {"osc2_amp": 55.0}

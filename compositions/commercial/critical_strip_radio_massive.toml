@@ -1,0 +1,242 @@
+# Proposal I: as H, with the zero drone played by Massive (a slow pad designed through its parameters).
+# Needs those plugins installed at the paths below; instruments stay General MIDI.
+# "Critical Strip (radio edit)" — a produced, ~3-minute version for streaming.
+#
+# The [[sections]] below are an ordinary score for the engine: every note still comes from the
+# peaks of the truncated explicit formula. The [produce] table decides how those notes are played
+# (instruments, tempo grid, arrangement, mix). Render with
+#
+#   uv run --extra produce zeta-music produce compositions/commercial/critical_strip_radio.toml
+#
+# Tempo grid: the 8 s bar sweeps 30 integers (3.75 per second). At 112.5 BPM a sixteenth lasts
+# exactly 1/7.5 s, so every integer falls on an odd sixteenth and the 8 s cycle is exactly three
+# bars of 5/4. The pulse plays only even sixteenths (eighth notes): the half-integers, where no
+# prime can ever sound, so it never masks the prime rhythm.
+
+title = "Critical Strip (radio edit)"
+sample_rate = 44100
+seed = 1859
+control_rate = 2000
+drone_base_hz = 82.41        # gamma_1 -> E2
+drone_exponent = 1.0
+drone_max_hz = 5000.0
+drone_tremolo = 0.35
+pluck_base_hz = 98.0         # prime pitches = folded harmonics of G2
+taper = "gauss"
+peak_prominence = 0.18
+
+# Intro: the main term alone, then the first zero fades in (no attacks yet).
+[[sections]]
+name = "Intro"
+duration = 16.0
+x_start = 1.2
+x_end = 3.2
+zeros_start = 0
+zeros_end = 1
+pluck_gain = 0.0
+breath_gain = 0.4
+drone_gain = 0.7
+
+# Verse: the same bar eight times while zeros are added; ghosts slide into tune.
+[[sections]]
+name = "Tuning in"
+duration = 64.0
+x_start = 1.5
+x_end = 31.5
+loop = 8.0
+zeros_start = 1
+zeros_end = 200
+zeros_steps = [1, 2, 3, 5, 8, 13, 34, 200]
+
+# Chorus: the bar fully in tune (500 zeros), with bass and pulse.
+[[sections]]
+name = "Chorus"
+duration = 32.0
+x_start = 1.5
+x_end = 31.5
+loop = 8.0
+zeros_start = 500
+zeros_end = 500
+drone_gain = 1.1
+
+# Bridge: leave the bar, exponential sweep along the number line (a built-in accelerando).
+[[sections]]
+name = "Further out"
+duration = 24.0
+x_start = 31.5
+x_end = 130.0
+sweep = "exp"
+zeros_start = 500
+zeros_end = 500
+
+# Chorus again, shorter.
+[[sections]]
+name = "Chorus (return)"
+duration = 16.0
+x_start = 1.5
+x_end = 31.5
+loop = 8.0
+zeros_start = 500
+zeros_end = 500
+drone_gain = 1.1
+
+# Outro: the bar runs backwards while zeros are taken away; the piece closes on 3, then 2.
+[[sections]]
+name = "Outro"
+duration = 16.0
+x_start = 31.5
+x_end = 1.5
+loop = 8.0
+zeros_start = 200
+zeros_end = 13
+zeros_steps = [55, 13]
+pluck_gain = 0.85
+drone_gain = 0.8
+
+# Balance of the engine's own voices, used for the "zeros" texture layer below.
+[mix]
+drone_db = -13.0
+pluck_db = -5.0
+bell_db = -9.0
+breath_db = -28.0
+pole_db = -21.0
+reverb_mix = 0.24
+reverb_t60 = 3.6
+peak_db = -1.0
+
+[produce]
+bpm = 112.5
+meter = [5, 4]
+quantise = 16               # grid of the quantised MIDI variant (1/16 notes)
+tail = 8.0                  # seconds of ring-out after the last section
+target_lufs = -14.0
+true_peak_db = -1.0
+reverb_t60 = 2.4
+bus_threshold_db = -16.0
+bus_ratio = 2.0
+master_air_db = 2.5          # high shelf at 8 kHz on the mix bus
+master_low_db = -3.0         # low shelf at 150 Hz on the mix bus
+master_fx = [{ plugin = "/Library/Audio/Plug-Ins/VST3/Solid Bus Comp.vst3", params = { ratio = 1.5, attack = 30.0 } }]
+# Default sound bank for instrument = "sf2" (overridden by --soundfont or $ZETA_SOUNDFONT).
+soundfont = "~/Downloads/zeta_soundfonts_generaluser/GeneralUser-GS-main/GeneralUser-GS.sf2"
+
+# Each voice is played by one instrument:
+#   "sf2" / "sf2:/path/bank.sf2"   General MIDI preset (bank, program) rendered with FluidSynth
+#   "plugin:/path/X.vst3"           AU/VST3 instrument via pedalboard; optional plugin_name, and
+#                                   state = a file saved with `zeta-music produce-preset`
+#   "builtin:sine"                  pure sine (sub bass)
+#   "engine"                        the engine's own drone + breath + pole stems
+# Optional per voice: gain_db, send (reverb send, 0-1), highpass_hz, lowpass_hz, presence_db
+# (high shelf at 3.5 kHz), transpose (st), tuning = "tempered" (force 12-TET for this voice, e.g.
+# for an instrument that ignores per-channel pitch bend),
+# and fx = [{ plugin = "/path/FX.vst3", state = "...", plugin_name = "..." },
+#           { plugin = "pedalboard:Chorus", params = { rate_hz = 0.4 } }].
+[produce.voices.primes]
+instrument = "sf2"
+program = 25                # Steel Guitar (brighter than nylon)
+gain_db = -2.0
+send = 0.2
+highpass_hz = 90.0
+presence_db = 0.5
+fx = [{ plugin = "/Library/Audio/Plug-Ins/VST3/Replika.vst3", params = { mix = " 82% /  18%", feedback = 22.0 } }]
+
+[produce.voices.bells]
+instrument = "sf2"
+program = 8                 # Celeste
+gain_db = -4.0
+send = 0.3
+presence_db = 5.0
+fx = [{ plugin = "/Library/Audio/Plug-Ins/VST3/Raum.vst3", params = { mix = 35.0, size = 70.0, damp = 40.0 } }]
+
+[produce.voices.drone]
+instrument = "plugin:/Library/Audio/Plug-Ins/VST3/Massive.vst3"
+tuning = "tempered"         # pad played in 12-TET with the open voicing
+params = { osc1_position = 12.0, osc2_amp = 55.0, osc2_pitch = 12.0, osc2_position = 5.0, envelope4_att_tme = 60.0, envelope4_dec_lev = 100.0, envelope4_rel_tme = 65.0, unisono = 3.0, unisono_spread_pitch_on_off = true, unisono_spread_pan_on_off = true }
+gain_db = -10.0
+send = 0.2
+highpass_hz = 70.0
+lowpass_hz = 4000.0
+fx = [{ plugin = "/Library/Audio/Plug-Ins/VST3/Raum.vst3", params = { mix = 45.0, size = 90.0, damp = 55.0, modulation = 40.0 } }]
+
+[produce.voices.bass]
+instrument = "sf2"
+program = 33                # Finger Bass
+gain_db = -7.0
+send = 0.0
+lowpass_hz = 2500.0
+
+[produce.voices.sub]
+instrument = "builtin:sine"
+gain_db = -15.0
+lowpass_hz = 120.0
+
+[produce.voices.pulse]
+instrument = "sf2"
+program = 40                # Brush kit (on channel 10, so the drum bank)
+gain_db = -8.0
+send = 0.12
+highpass_hz = 35.0
+presence_db = 3.0
+
+[produce.voices.zeros]
+instrument = "engine"
+gain_db = -12.0
+send = 0.0
+highpass_hz = 200.0
+
+# Arrangement: per section, a level (0-4, 0 = silent) for every voice (sub defaults to the bass
+# level), the bass and pulse patterns, and gain_db (mix automation for the section). Notes
+# themselves always come from the engine.
+[produce.arrangement."Intro"]
+primes = 0.0
+bells = 0.0
+drone = 1.2
+bass = 0.0
+pulse = "off"
+zeros = 2.5
+gain_db = 10.5              # lift the intro to within ~10 LU of the chorus
+
+[produce.arrangement."Tuning in"]
+primes = 1.0
+bells = 0.9
+drone = 0.75
+bass = 0.0
+pulse = "cycle"
+zeros = 1.0
+
+[produce.arrangement."Chorus"]
+primes = 1.0
+bells = 1.0
+drone = 1.0
+bass = 1.0
+bass_pattern = "drive"
+pulse = "groove"
+zeros = 0.8
+
+[produce.arrangement."Further out"]
+primes = 1.0
+bells = 1.0
+drone = 1.0
+bass = 0.9
+bass_pattern = "pedal"
+pulse = "bar"
+zeros = 1.4
+gain_db = 1.5
+
+[produce.arrangement."Chorus (return)"]
+primes = 1.0
+bells = 1.0
+drone = 1.0
+bass = 1.0
+bass_pattern = "drive"
+pulse = "groove"
+zeros = 0.8
+
+[produce.arrangement."Outro"]
+primes = 0.9
+bells = 0.8
+drone = 0.7
+bass = 0.6
+bass_pattern = "pedal"
+pulse = "cycle"
+zeros = 1.0
