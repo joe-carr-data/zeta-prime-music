@@ -1,7 +1,15 @@
 import numpy as np
 import pytest
 
-from zeta_music.composition import build_timeline, detect_events, event_pitch, fold, render, salience_curve
+from zeta_music.composition import (
+    build_timeline,
+    detect_events,
+    event_pan,
+    event_pitch,
+    fold,
+    render,
+    salience_curve,
+)
 from zeta_music.config import load_config
 from zeta_music.zeros import load_zeros
 
@@ -78,3 +86,21 @@ def test_salience_is_bounded_while_first_zero_fades_in():
     assert np.all(np.isfinite(s)) and np.max(np.abs(s)) < 10
     # fades in proportionally to presence while N < 1
     np.testing.assert_allclose(s[1:4] / s[4], n[1:4], rtol=1e-9)
+
+
+@pytest.mark.parametrize("taper", ["none", "gauss", "hann", "fejer"])
+def test_salience_full_scale_at_one_zero(taper):
+    """At N=1 the floor must not attenuate: S equals the unfloored normalisation."""
+    g = load_zeros(3)
+    x = np.array([2.0, 3.0, 5.0])
+    s = salience_curve(x, np.ones(3), g, taper)
+    unfloored = (
+        -2.0 * x**-0.5 * np.cos(g[0] * np.log(x)) * x / np.log(x) * np.pi / (2 * np.pi / np.log(g[0] / (2 * np.pi)))
+    )
+    np.testing.assert_allclose(s, unfloored, rtol=1e-9)
+
+
+def test_pan_is_continuous_across_powers_of_two():
+    """Regression : stereo position must not flip as a peak converges on n."""
+    for n in (2, 4, 8, 16):
+        assert event_pan(n - 0.01) == event_pan(n + 0.01) == event_pan(float(n))

@@ -10,8 +10,8 @@ note is a peak of the truncated sum ψ'_N(x), and every drone partial is a zero.
 | Zero ρ_k = ½ + iγ_k | sine partial at `82.41 Hz · γ_k/γ₁` (γ₁ → E2) | Imag. part = frequency (video, 1:05). Inharmonic: the zeros are *not* a harmonic series. |
 | weight 1/\|ρ_k\| | partial amplitude | literal coefficient of x^ρ/ρ in ψ(x) |
 | cos(γ_k ln x) at the current x | tremolo of partial k | the zero's actual oscillation along the number line |
-| peak of ψ'_N(x) at x* | plucked string (Karplus–Strong) | the "guitar" of the video |
-| peak position x* | pitch = G2 · x*/2^⌊log₂x*⌋ (folded harmonic) | primes become just-intonation intervals: 3 → fifth, 5 → major third, 7 → harmonic 7th, 11 → 11th harmonic… Off-integer peaks are *microtonal* — out of tune until enough zeros are present |
+| peak of the salience curve (normalised oscillatory part of ψ'_N) at x* | plucked string (Karplus–Strong) | the "guitar" of the video |
+| peak position x*, nearest integer n | pitch = G2 · (n/2^⌊log₂n⌋) · 2^octave(n) · (x*/n) — folded harmonic of n, detuned by x*/n | primes become just-intonation intervals: 3 → fifth, 5 → major third, 7 → harmonic 7th, 11 → 11th harmonic… Off-integer peaks are *microtonal* — out of tune until enough zeros are present |
 | peak height (normalised) → salience ≈ Λ(n)/log n | velocity | primes = 1, p² = ½, p³ = ⅓ — prime powers are literally quieter |
 | prime power p^k (k ≥ 2) | FM bell an octave up | the video's "overtone at 4, 8, 16, 9" |
 | peak not at a prime power | "ghost" (dull short pluck) | artefact of truncation; disappears as N grows |

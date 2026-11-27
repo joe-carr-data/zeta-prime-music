@@ -78,11 +78,14 @@ def test_spike_density_layout_independent():
     g = load_zeros(20)
     a = np.array([[2.0, 3.0, 4.5], [5.0, 7.0, 9.5]])
     expected = np.array([[spike_density([v], g)[0] for v in row] for row in a])
-    for arr in (a, np.asfortranarray(a), a.T.copy().T, a[:, ::-1][:, ::-1]):
+    for arr in (a, np.asfortranarray(a)):
         np.testing.assert_allclose(spike_density(arr, g), expected, rtol=1e-12)
+    # negative strides
+    np.testing.assert_allclose(spike_density(a[:, ::-1], g), expected[:, ::-1], rtol=1e-12)
     np.testing.assert_allclose(spike_density(a, g, chunk=1), expected, rtol=1e-12)
 
 
-def test_spike_density_rejects_bad_chunk():
+@pytest.mark.parametrize("chunk", [0, -1])
+def test_spike_density_rejects_bad_chunk(chunk):
     with pytest.raises(ValueError):
-        spike_density([2.0], load_zeros(3), chunk=0)
+        spike_density([2.0], load_zeros(3), chunk=chunk)

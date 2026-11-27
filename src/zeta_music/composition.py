@@ -144,7 +144,7 @@ def salience_curve(
     prime power, so ``S(n) → Λ(n)/log n`` (1 at primes, 1/k at ``p^k``).
 
     The smooth main term (1) and trivial-zero term ``1/(x(x²−1))`` carry no spikes and are left
-    out: they would otherwise dominate as ``I_w → 0``. ``I_w`` is floored at one full zero, so
+    out: they would otherwise dominate as ``I_w → 0``. ``I_w`` is floored at one full (tapered) zero, so
     while the first zero fades in (``N < 1``) the curve fades in proportionally and ``N = 0``
     gives exactly 0.
     """
@@ -153,13 +153,15 @@ def salience_curve(
         return np.zeros_like(x, dtype=np.float64)
     k = np.arange(g.size, dtype=np.float64)
     spacing = 2 * np.pi / np.log(g / (2 * np.pi))
+    # floor = bandwidth of exactly one fully present (tapered) zero, so N=1 keeps full scale
+    i_w_one = float(spacing[0] * _zero_weights(k[:1], np.ones(1), taper)[0, 0])
     out = np.empty(x.shape, dtype=np.float64)
     for s in range(0, x.size, chunk):
         sl = slice(s, min(s + chunk, x.size))
         xc, nc = x[sl], n_zeros[sl]
         w = _zero_weights(k, nc, taper)
         osc = np.einsum("kj,kj->j", w, np.cos(np.outer(g, np.log(xc))))
-        i_w = np.maximum(spacing @ w, spacing[0])
+        i_w = np.maximum(spacing @ w, i_w_one)
         out[sl] = -2.0 * xc**-0.5 * osc * xc / np.log(xc) * np.pi / i_w
     return out
 
