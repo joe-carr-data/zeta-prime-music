@@ -61,3 +61,4 @@
 - The radio edit with sampled instruments becomes the main track, "The Sound of the Primes": featured on the site and in the README, a radio-edit section in both guides for musicians, and the media licence clarified (released mixes only; separate instrument stems are not distributed).
 - Framing: the site and README now lead with the November 2026 proof of the Riemann Hypothesis as the reason to listen ("this is what those zeros sound like").
 - Wording: the proof is presented as announced/claimed and under examination, not as settled.
+- Video for the produced radio edit: `zeta-music video` accepts a score with a `[produce]` table (labels follow the arrangement; note times identical to the produced events), `--title`, captions wrapped inside the frame; `make video-j` renders proposal J's full video and five vertical clips.

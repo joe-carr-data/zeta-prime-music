@@ -5,6 +5,10 @@ with the active number of zeros N. The part of the curve already swept by the pl
 bright, the rest dim; every note that sounds is labelled with its integer as it is struck
 (primes red, prime powers blue, ghosts grey). Frames are piped straight into ffmpeg and muxed
 with the rendered audio, so ``--start/--end`` cut social clips from the same render.
+
+For a produced version (a score with a ``[produce]`` table, rendered by ``zeta-music produce``)
+pass the table as ``produce``: the notes and their times are the engine's, as in the produced
+audio, and a section whose arrangement silences the primes (or bells) labels none of them.
 """
 
 from __future__ import annotations
@@ -14,16 +18,18 @@ import math
 import shutil
 import subprocess
 import tempfile
+import textwrap
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import numpy as np
 
-from .composition import Event, analyse, salience_curve
+from .composition import Event, Timeline, analyse, salience_curve
 from .config import CompositionConfig
 
-__all__ = ["VideoSpec", "frame_count", "render_video"]
+__all__ = ["VideoSpec", "frame_count", "produced_levels", "render_video"]
 
 log = logging.getLogger(__name__)
 Aspect = Literal["16:9", "9:16", "1:1"]
@@ -42,20 +48,90 @@ class VideoSpec:
     crf: int = 20
     caption: str | None = None  # hook shown over the first CAPTION_SECONDS of the clip
     end_card: bool = False  # title card over the last END_CARD_SECONDS
+    title: str | None = None  # page title (default: the score's title)
 
 
 CAPTION_SECONDS = 4.0
+PORTRAIT_WINDOW = 28.0  # narrower sliding window on vertical video: twin-prime labels stay apart
+CAPTION_CHARS = {True: 30, False: 72}  # characters per caption line: portrait, landscape
 END_CARD_SECONDS = 2.5
 END_CARD_TITLE = "Zeta Prime Music"
 END_CARD_URL = "joe-carr-data.github.io/zeta-prime-music"
 
 
-def _window(cfg: CompositionConfig, sec_idx: int, x_now: float) -> tuple[float, float]:
-    """Visible x range: the whole section if short or looping, else a 40-wide window that leads
+# The produced voice that plays each kind of note (ghosts are played by the primes voice).
+PRODUCED_VOICE = {"prime": "primes", "ghost": "primes", "prime_power": "bells"}
+
+
+def produced_levels(produce: Mapping[str, Any], cfg: CompositionConfig) -> dict[str, dict[str, float]]:
+    """Per section, the arrangement level of the voices that play labelled notes (0 = silent).
+
+    Mirrors the producer: a voice missing from ``[produce.voices]``, or from a section's
+    ``[produce.arrangement."<section>"]`` table, does not play there.
+    """
+    voices = produce.get("voices", {})
+    arrangement = produce.get("arrangement", {})
+    if not isinstance(voices, Mapping) or not isinstance(arrangement, Mapping):
+        raise ValueError("[produce.voices] and [produce.arrangement] must be tables")
+    names = [s.name for s in cfg.sections]
+    unknown = sorted(set(arrangement) - set(names))
+    if unknown:
+        raise ValueError(f"[produce.arrangement] sections not in the score: {unknown}")
+    out: dict[str, dict[str, float]] = {}
+    for name in names:
+        table = arrangement.get(name, {})
+        if not isinstance(table, Mapping):
+            raise ValueError(f"[produce.arrangement.{name!r}] must be a table")
+        levels: dict[str, float] = {}
+        for voice in sorted(set(PRODUCED_VOICE.values())):
+            v = table.get(voice, 0.0)
+            if isinstance(v, bool) or not isinstance(v, int | float) or not math.isfinite(v):
+                raise ValueError(f"[produce.arrangement.{name!r}] {voice} must be a number, got {v!r}")
+            levels[voice] = float(v) if voice in voices else 0.0
+        out[name] = levels
+    return out
+
+
+def _produced_events(
+    events: list[Event], cfg: CompositionConfig, tl: Timeline, produce: Mapping[str, Any]
+) -> list[Event]:
+    """The events the produced arrangement actually plays."""
+    levels = produced_levels(produce, cfg)
+
+    def section(e: Event) -> str:
+        return cfg.sections[int(tl.section[min(int(e.time * tl.rate), tl.t.size - 1)])].name
+
+    return [e for e in events if levels[section(e)][PRODUCED_VOICE[e.kind]] > 0]
+
+
+def wrap_caption(text: str, portrait: bool) -> str:
+    """Break a caption into lines that, boxed, stay inside the frame (matplotlib's own wrap
+    fills the whole figure width, so the box ran off the edges of a vertical clip)."""
+    return textwrap.fill(text, width=CAPTION_CHARS[portrait], break_long_words=False)
+
+
+LABEL_EM = 0.62 * 100 / 72  # px per pt of font size per character (bold digits at dpi 100), approx.
+LABEL_LIFT = 0.24  # data units a label moves up per row when it would touch its neighbour
+
+
+def label_rows(xs: list[float], widths: list[float], gap_frac: float = 0.15, max_rows: int = 2) -> list[int]:
+    """Row (0 = normal height, 1 = lifted, …) for each centred label so neighbours never touch:
+    going left to right, a label takes the lowest row whose previous label it clears."""
+    rows = [0] * len(xs)
+    right_edge = [-math.inf] * max_rows
+    for i in sorted(range(len(xs)), key=lambda k: xs[k]):
+        left = xs[i] - widths[i] * (0.5 + gap_frac)
+        row = next((r for r in range(max_rows) if left >= right_edge[r]), 0)
+        rows[i] = row
+        right_edge[row] = xs[i] + widths[i] * (0.5 + gap_frac)
+    return rows
+
+
+def _window(cfg: CompositionConfig, sec_idx: int, x_now: float, width: float = 40.0) -> tuple[float, float]:
+    """Visible x range: the whole section if short or looping, else a ``width``-wide window that leads
     in the direction of travel (85 % behind the playhead, 15 % ahead), clamped to the section."""
     sec = cfg.sections[sec_idx]
     lo, hi = sorted((sec.x_start, sec.x_end))
-    width = 40.0
     if sec.loop or hi - lo <= width:
         return lo, hi
     if sec.x_end >= sec.x_start:  # ascending: most of the window behind (left of) the playhead
@@ -87,7 +163,13 @@ def frame_count(duration: float, fps: int) -> int:
     return max(1, math.ceil(duration * fps - 1e-9))
 
 
-def render_video(cfg: CompositionConfig, audio: Path, out: Path, spec: VideoSpec = VideoSpec()) -> Path:
+def render_video(
+    cfg: CompositionConfig,
+    audio: Path,
+    out: Path,
+    spec: VideoSpec = VideoSpec(),
+    produce: Mapping[str, Any] | None = None,
+) -> Path:
     if spec.fps <= 0:
         raise ValueError("fps must be positive")
     if shutil.which("ffmpeg") is None:
@@ -106,7 +188,11 @@ def render_video(cfg: CompositionConfig, audio: Path, out: Path, spec: VideoSpec
     import matplotlib.patches
     import matplotlib.pyplot as plt
 
+    if produce is not None:
+        produced_levels(produce, cfg)  # fail fast, before the analysis
     gammas, tl, _sal, events = analyse(cfg)
+    if produce is not None:
+        events = _produced_events(events, cfg, tl, produce)
     seg = tl.segment
     w, h = SIZES[spec.aspect]
     portrait = h > w
@@ -122,7 +208,9 @@ def render_video(cfg: CompositionConfig, audio: Path, out: Path, spec: VideoSpec
     (live_line,) = ax.plot([], [], color=FG, lw=1.6)
     head = ax.axvline(0, color="#f2c14e", lw=1.0, alpha=0.8)
     big = 30 if portrait else 26
-    title = fig.text(0.5, 0.92 if portrait else 0.90, cfg.title, ha="center", color=FG, fontsize=big, weight="bold")
+    page_title = spec.title if spec.title is not None else cfg.title
+    title = fig.text(0.5, 0.92 if portrait else 0.90, page_title, ha="center", color=FG, fontsize=big, weight="bold",
+                     parse_math=False)  # fmt: skip
     subtitle = fig.text(0.5, 0.875 if portrait else 0.84, "", ha="center", color="#9aa0aa", fontsize=big * 0.55)
     counter = fig.text(0.5, 0.82 if portrait else 0.79, "", ha="center", color="#f2c14e", fontsize=big * 0.75)
     formula = r"$\psi'(x) = 1 - 2x^{-1/2}\sum_{\gamma} \cos(\gamma \ln x)$"
@@ -136,8 +224,8 @@ def render_video(cfg: CompositionConfig, audio: Path, out: Path, spec: VideoSpec
             0.5, 0.06, formula + "   —   " + gloss, ha="center", color="#9aa0aa", fontsize=big * 0.45
         )
     labels: list = []
-    caption = fig.text(0.5, 0.085 if portrait else 0.055, spec.caption or "", ha="center", va="center", color=FG,
-                       fontsize=big * 0.62, weight="bold", wrap=True, alpha=0.0, parse_math=False,
+    caption = fig.text(0.5, 0.085 if portrait else 0.055, wrap_caption(spec.caption or "", portrait), ha="center",
+                       va="center", color=FG, fontsize=big * 0.62, weight="bold", alpha=0.0, parse_math=False,
                        bbox={"boxstyle": "round,pad=0.6", "fc": "#000000", "ec": "none", "alpha": 0.0})  # fmt: skip
     card = fig.add_axes((0, 0, 1, 1), facecolor=BG)
     card.set_axis_off()
@@ -163,7 +251,7 @@ def render_video(cfg: CompositionConfig, audio: Path, out: Path, spec: VideoSpec
                 sec_idx = int(tl.section[j])
                 x_now = float(tl.x[j])
                 n_now = float(tl.n_zeros[j])
-                lo, hi = _window(cfg, sec_idx, x_now)
+                lo, hi = _window(cfg, sec_idx, x_now, PORTRAIT_WINDOW if portrait else 40.0)
                 key = (n_now, lo, hi)  # exact inputs: identical bars share one curve
                 if key not in cache:
                     if len(cache) > 64:
@@ -189,12 +277,19 @@ def render_video(cfg: CompositionConfig, audio: Path, out: Path, spec: VideoSpec
                 same_bar: list[Event] = [
                     e for e in events if e.time <= t and int(seg[min(int(e.time * tl.rate), seg.size - 1)]) == seg[j]
                 ]
-                for e in same_bar[-40:]:
+                shown = same_bar[-40:]
+                styles = []
+                for e in shown:
                     age = t - e.time
-                    alpha = 1.0 if age < 0.15 else max(0.6, 1.0 - 0.2 * age)
                     txt = str(e.nearest) if e.kind != "ghost" else f"{e.x:.1f}"
-                    y = min(e.salience, 2.2) + 0.12
-                    size = (16 if portrait else 14) * (1.5 if age < 0.12 else 1.0)
+                    styles.append((age, txt, (16 if portrait else 14) * (1.5 if age < 0.12 else 1.0)))
+                units_per_px = (hi - lo) / (w * ax.get_position().width)
+                base = 16 if portrait else 14  # rows from the resting size: a fresh label's pop does not move them
+                widths = [len(txt) * base * LABEL_EM * units_per_px for _a, txt, _s in styles]
+                rows = label_rows([e.x for e in shown], widths)
+                for e, (age, txt, size), row in zip(shown, styles, rows, strict=True):
+                    alpha = 1.0 if age < 0.15 else max(0.6, 1.0 - 0.2 * age)
+                    y = min(e.salience, 2.2) + 0.12 + LABEL_LIFT * row
                     labels.append(
                         ax.text(
                             e.x,

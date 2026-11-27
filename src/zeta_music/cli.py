@@ -54,14 +54,20 @@ def _cmd_explain(args: argparse.Namespace) -> int:
 
 
 def _cmd_video(args: argparse.Namespace) -> int:
-    from .config import load_config
+    from .config import load_score_config
     from .video import VideoSpec, render_video
 
-    cfg = load_config(args.config)
+    cfg, produce = load_score_config(args.config)  # a produced version's score keeps its [produce] table
     spec = VideoSpec(
-        aspect=args.aspect, fps=args.fps, start=args.start, end=args.end, caption=args.caption, end_card=args.end_card
+        aspect=args.aspect,
+        fps=args.fps,
+        start=args.start,
+        end=args.end,
+        caption=args.caption,
+        end_card=args.end_card,
+        title=args.title,
     )
-    print(render_video(cfg, Path(args.audio), Path(args.out), spec))
+    print(render_video(cfg, Path(args.audio), Path(args.out), spec, produce=produce))
     return 0
 
 
@@ -146,7 +152,7 @@ def build_parser() -> argparse.ArgumentParser:
     e.set_defaults(func=_cmd_explain)
 
     v = sub.add_parser("video", help="visualiser video synced to a rendered WAV (needs matplotlib + ffmpeg)")
-    v.add_argument("config", help="the composition TOML the audio was rendered from")
+    v.add_argument("config", help="the score TOML the audio was rendered from (render or produce)")
     v.add_argument("--audio", required=True, help="rendered WAV")
     v.add_argument("-o", "--out", default="output/video.mp4")
     v.add_argument("--aspect", choices=["16:9", "9:16", "1:1"], default="16:9")
@@ -155,6 +161,7 @@ def build_parser() -> argparse.ArgumentParser:
     v.add_argument("--end", type=float, default=None, help="clip end (s)")
     v.add_argument("--caption", default=None, help="hook text shown over the first 4 s")
     v.add_argument("--end-card", action="store_true", help="title card with the site address over the last 2.5 s")
+    v.add_argument("--title", default=None, help="page title (default: the score's title)")
     v.set_defaults(func=_cmd_video)
 
     an = sub.add_parser("animate", help="README hero animation: the primes appearing as zeros are added")
