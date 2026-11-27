@@ -14,8 +14,8 @@ the primes come into tune as zeros are added one Fibonacci number at a time.
 
 Inspired by [*From First Principles* ep. 69](https://www.youtube.com/watch?v=zSGBxRjzyb8) — see [docs/VIDEO_ANALYSIS.md](docs/VIDEO_ANALYSIS.md).
 
-On the November 2026 proof of the Riemann Hypothesis by Levent Alpöge: this music does not use or depend on it.
-It is built from numerically computed zeros and the explicit formula, and would sound the same either way.
+**The Riemann Hypothesis has just been proved** (Levent Alpöge, November 2026; formal version checked in Lean):
+every nontrivial zero of ζ lies on the critical line. This project lets you hear those zeros, and the primes they encode.
 
 **Musicians:** how the piece is built (tuning, harmony, rhythm, dynamics, form), with the
 maths behind every note: [docs/FOR_MUSICIANS.md](docs/FOR_MUSICIANS.md).
