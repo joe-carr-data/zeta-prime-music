@@ -21,10 +21,13 @@ render: $(OUT)/critical_strip.wav
 $(PROP)/B_prime_pulse.wav:
 	uv run zeta-music render compositions/proposals/prime_pulse.toml -o $(PROP) --name B_prime_pulse --no-plot
 
+$(PROP)/F_critical_strip_revised.wav:
+	uv run zeta-music render compositions/proposals/critical_strip_revised.toml -o $(PROP) --name F_critical_strip_revised --no-plot
+
 $(PROP)/C_deep_strip.wav:
 	uv run zeta-music render compositions/proposals/deep_strip.toml -o $(PROP) --name C_deep_strip --no-plot
 
-proposals: render $(PROP)/B_prime_pulse.wav $(PROP)/C_deep_strip.wav
+proposals: render $(PROP)/B_prime_pulse.wav $(PROP)/C_deep_strip.wav $(PROP)/F_critical_strip_revised.wav
 	cp $(OUT)/critical_strip.wav $(PROP)/A_critical_strip.wav
 	uv run zeta-music literal log -o $(PROP)/D_literal_zeros_chord.wav -d 12
 	uv run zeta-music literal linear -o $(PROP)/E_literal_prime_clicks.wav -d 12

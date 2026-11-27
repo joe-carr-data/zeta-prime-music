@@ -1,0 +1,107 @@
+# "Critical Strip (revised)" — proposal F: proposal A with three changes suggested in review
+#   1. II is 16 s shorter (the 89- and 144-zero bars sound like their neighbours);
+#   2. IV is a call and response: the resolved bar first as breath only, then articulated;
+#   3. V runs the bar BACKWARDS (31.5 -> 1.5), so the piece closes on 3 then 2.
+#
+# Based on "Critical Strip" — a piece in five movements built from the explicit formula
+#
+#   psi'(x) = 1 - 2 x^{-1/2} * sum_k cos(gamma_k ln x) - 1/(x(x^2-1))
+#
+# Each nontrivial zero rho_k = 1/2 + i gamma_k is a partial of the drone; the primes are
+# the interference pattern of all those partials, heard as plucked strings.
+
+title = "Critical Strip (revised)"
+sample_rate = 44100
+seed = 1859
+control_rate = 2000
+drone_base_hz = 82.41        # gamma_1 -> E2 (lowest guitar string)
+drone_exponent = 1.0         # honest, inharmonic: f_k = base * gamma_k / gamma_1
+drone_max_hz = 5000.0
+drone_tremolo = 0.35
+pluck_base_hz = 98.0         # prime pitches = folded harmonics of G2
+taper = "gauss"
+peak_prominence = 0.18
+
+# I. Pole — the main term alone, then the first zero enters. Slow walk from x=1.2 to 3.
+[[sections]]
+name = "I. Pole"
+duration = 16.0
+x_start = 1.2
+x_end = 3.2
+zeros_start = 0
+zeros_end = 1
+pluck_gain = 0.0
+breath_gain = 0.4
+drone_gain = 0.7
+
+# II. Ostinato — the same bar (the integers 1.5..31.5) repeated while zeros are added
+#     along the Fibonacci numbers. Ghost notes fade; the primes come into tune.
+[[sections]]
+name = "II. Adding zeros"
+duration = 80.0
+x_start = 1.5
+x_end = 31.5
+loop = 8.0
+zeros_start = 1
+zeros_end = 200
+zeros_steps = [1, 2, 3, 5, 8, 13, 21, 34, 55, 200]
+
+# III. Expansion — leave the bar and run out along the number line (exponential sweep,
+#      an accelerando because primes thin only like 1/ln x), adding zeros up to 500.
+[[sections]]
+name = "III. Further out"
+duration = 44.0
+x_start = 31.5
+x_end = 260.0
+sweep = "exp"
+zeros_start = 200
+zeros_end = 500
+
+# IV. Critical line — call and response: the fully resolved bar first as breath alone (the sum
+#     itself, no attacks), then the same bar articulated by the strings.
+[[sections]]
+name = "IV. Critical line (call)"
+duration = 8.0
+x_start = 1.5
+x_end = 31.5
+loop = 8.0
+zeros_start = 500
+zeros_end = 500
+pluck_gain = 0.0
+drone_gain = 1.25
+breath_gain = 2.2
+
+[[sections]]
+name = "IV. Critical line (response)"
+duration = 8.0
+x_start = 1.5
+x_end = 31.5
+loop = 8.0
+zeros_start = 500
+zeros_end = 500
+drone_gain = 1.25
+breath_gain = 1.0
+
+# V. Reflection — s -> 1 - s: the bar runs backwards while zeros are taken away; the primes
+#    blur back into waves and the piece closes on 3, then 2.
+[[sections]]
+name = "V. Reflection"
+duration = 32.0
+x_start = 31.5
+x_end = 1.5
+loop = 8.0
+zeros_start = 200
+zeros_end = 1
+zeros_steps = [34, 8, 2, 1]
+pluck_gain = 0.8
+drone_gain = 0.8
+
+[mix]
+drone_db = -13.0
+pluck_db = -5.0
+bell_db = -9.0   # 4 dB under a pluck at equal salience; salience adds the 1/k cue
+breath_db = -28.0
+pole_db = -21.0
+reverb_mix = 0.24
+reverb_t60 = 3.6
+peak_db = -1.0
