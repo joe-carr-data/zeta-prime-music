@@ -63,3 +63,8 @@ tests/            pytest suite (math is tested against known values)
 A score is a list of sections, each sweeping the number line `x` while a number of zeros is
 switched on. See [compositions/critical_strip.toml](compositions/critical_strip.toml) and
 [docs/COMPOSITION.md](docs/COMPOSITION.md) for every mapping and its mathematical justification.
+
+## Licence
+
+Code: [MIT](LICENSE). Music, video, animation and figures: [CC BY 4.0](LICENSE-MEDIA.md) —
+credit "Zeta Prime Music" by Joe Carr.

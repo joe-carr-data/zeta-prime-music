@@ -3,6 +3,8 @@ name = "zeta-music"
 version = "0.1.0"
 description = "The music of the primes: compositions generated from the nontrivial zeros of the Riemann zeta function"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     { name = "Joe Carr" }
 ]
