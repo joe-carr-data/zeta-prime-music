@@ -7,6 +7,11 @@ This file drives the autonomous 5-minute improvement loop. Keep the backlog rank
   sonification, MIDI/JSON/plots, CLI, 42 tests, CI.
 
 ## Backlog (highest value first)
+Outreach assets (plan: (private link) — Build phase 1–20 Dec 2026):
+O1. Visualiser video: animated ψ'_N(x) spikes + zero count synced to audio, 16:9 and 9:16 (matplotlib/ffmpeg), `zeta-music video`.
+O2. Five 30–60 s vertical clips cut from A/B (the bar snapping into tune is the hook), captions burned in.
+O3. Interactive web demo: slider adds zeros, Web Audio plays the bar (static page, no backend).
+O4. LICENSE (MIT code) once the user decides on audio licence (CC BY 4.0 recommended for clips/stems).
 review findings (docs/reviews/review_2026-11-27_raw.log), fix in order:
 C6. detect_events treats any negative diff(x) as loop reset → descending sweeps lose notes. Carry explicit boundaries.
 C10. Stem normalisation cancels 1/k bell loudness cue. Calibrate voices at unit salience, shared gain.
