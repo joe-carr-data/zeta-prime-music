@@ -46,6 +46,24 @@ def smooth(x: Audio, sr: float, cutoff_hz: float) -> Audio:
     return signal.filtfilt(b, a, x)
 
 
+def _ks_loop(freq: float, sr: int, t60: float) -> tuple[int, float, float]:
+    """Loop parameters (integer delay P, fraction f, raw gain g) at sample rate ``sr``.
+
+    Per-period decay so the fundamental falls 60 dB in t60 seconds. The loop filter also
+    attenuates the fundamental by |H(w0)| every period, so that is divided out; ``g`` may come
+    out >= 1 for high notes, in which case the caller oversamples.
+    """
+    period = sr / freq
+    p = max(int(np.floor(period - 0.5)), 2)
+    f = float(np.clip(period - p - 0.5, 0.0, 1.0))
+    w0 = 2.0 * np.pi * freq / sr
+    h_w0 = abs(0.5 * (1.0 - f) + 0.5 * np.exp(-1j * w0) + 0.5 * f * np.exp(-2j * w0))
+    return p, f, 10.0 ** (-3.0 / (t60 * freq)) / max(h_w0, 1e-6)
+
+
+MAX_LOOP_GAIN = 0.9999  # |H| <= 1 with equality at DC, so g < 1 keeps every frequency stable
+
+
 def pluck(
     freq: float,
     dur: float,
@@ -54,25 +72,34 @@ def pluck(
     brightness: float = 0.6,
     t60: float = 2.5,
 ) -> Audio:
-    """Karplus–Strong plucked string with fractional-delay tuning and decay control.
+    """Karplus–Strong plucked string with fractional-delay tuning and calibrated decay.
 
     Loop filter ``h = [(1-f)/2, 1/2, f/2]`` is always a lowpass and has phase delay
     ``0.5 + f`` at low frequencies, so the total loop delay ``P + 0.5 + f`` equals the period
     exactly. The recursion only reaches ``P`` samples back, so it is evaluated a period at a
     time (vectorised).
+
+    High notes lose more to the loop filter per period than a stable gain can restore, so they
+    are synthesised at 2x/4x/8x the sample rate (the per-period loss falls ~ with the square of
+    the factor) and decimated. Notes that do not need it are bit-identical to plain KS.
     """
+    from math import gcd
+
     n = int(dur * sr)
-    period = sr / freq
-    p = max(int(np.floor(period - 0.5)), 2)
-    f = float(np.clip(period - p - 0.5, 0.0, 1.0))
-    # loop gain so the fundamental decays 60 dB in t60 seconds
-    g = 10.0 ** (-3.0 / (t60 * freq))
+    over = 1
+    p, f, g = _ks_loop(freq, sr, t60)
+    while g > MAX_LOOP_GAIN and over < 8:
+        over *= 2
+        p, f, g = _ks_loop(freq, sr * over, t60)
+    g = min(g, MAX_LOOP_GAIN)
+    sr_int = sr * over
+    n_int = n * over
     excitation = rng.uniform(-1.0, 1.0, p + 2)
     # brighten/darken the initial burst with a one-pole lowpass
     pole = (1.0 - brightness) * 0.9
     excitation = signal.lfilter([1.0 - pole], [1.0, -pole], excitation)
     excitation -= excitation.mean()
-    y = np.zeros(n + p + 2)
+    y = np.zeros(n_int + p + 2)
     y[: p + 2] = excitation
     h0, h1, h2 = g * 0.5 * (1.0 - f), g * 0.5, g * 0.5 * f
     i = p + 2
@@ -80,7 +107,10 @@ def pluck(
         j = min(i + p, y.size)
         y[i:j] = h0 * y[i - p : j - p] + h1 * y[i - p - 1 : j - p - 1] + h2 * y[i - p - 2 : j - p - 2]
         i = j
-    out = y[p + 2 : p + 2 + n]
+    out = y[p + 2 : p + 2 + n_int]
+    if over > 1:
+        k = gcd(sr_int, sr)
+        out = signal.resample_poly(out, sr // k, sr_int // k)[:n]
     fade = min(n, int(0.01 * sr))
     if fade:
         out[-fade:] *= np.linspace(1.0, 0.0, fade)

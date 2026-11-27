@@ -9,7 +9,7 @@ from zeta_music.literal import literal
 from zeta_music.midi import freq_to_midi
 
 
-@pytest.mark.parametrize("freq", [110.0, 196.0, 440.0, 1000.0])
+@pytest.mark.parametrize("freq", [110.0, 196.0, 440.0, 1000.0, 1568.0, 2093.0])
 def test_pluck_is_in_tune(freq):
     sr = 44100
     y = synth.pluck(freq, 1.0, sr, np.random.default_rng(0))
@@ -19,6 +19,24 @@ def test_pluck_is_in_tune(freq):
     band = (freqs > 0.85 * freq) & (freqs < 1.15 * freq)
     f0 = freqs[band][np.argmax(spec[band])]
     assert abs(1200 * np.log2(f0 / freq)) < 6  # cents
+
+
+def _fundamental_t60(y, freq, sr):
+    t = np.arange(y.size) / sr
+    z = y * np.exp(-2j * np.pi * freq * t)
+    blk = int(0.05 * sr)
+    env = np.abs(np.array([z[i : i + blk].mean() for i in range(0, y.size - blk, blk)]))
+    tt = (np.arange(env.size) + 0.5) * blk / sr
+    sel = (tt > 0.2) & (tt < 2.5) & (env > env.max() * 1e-3)
+    return -60.0 / np.polyfit(tt[sel], 20 * np.log10(env[sel]), 1)[0]
+
+
+@pytest.mark.parametrize("freq", [98.0, 392.0, 784.0, 1175.0, 1568.0])
+def test_pluck_decay_matches_t60(freq):
+    """Regression : loop-filter loss made high notes die early (1568 Hz: 0.33 s for t60=2.5 s)."""
+    sr = 44100
+    y = synth.pluck(freq, 3.0, sr, np.random.default_rng(1), t60=2.5)
+    assert _fundamental_t60(y, freq, sr) == pytest.approx(2.5, rel=0.1)
 
 
 def test_master_peak():
