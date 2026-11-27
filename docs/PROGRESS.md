@@ -52,3 +52,4 @@
   reversed movement V ending on 3 → 2.
 - Public-release housekeeping: LICENSE (MIT) and LICENSE-MEDIA.md (CC BY 4.0), CHANGELOG, CONTRIBUTING, version single-sourced from pyproject (`zeta-music --version`).
 - Clips: `zeta-music video --caption … --end-card` (hook text over the first 4 s, title card with the site address over the last 2.5 s); `make clips` captions all five.
+- Site and docs review fixes: instrument fits phone screens; table headings, meta text and legend meet 4.5:1 contrast; hero animation is a pausable video that respects reduced motion; movement timelines stack on phones; bell levels stated relative to a prime (−10 / −13.5 / −16 dB); register rule and first-bar pitches corrected; revised track duration 3:12; absolute share image; captions are literal text and never cover the axis labels; hatchling ≥ 1.26 for licence metadata.

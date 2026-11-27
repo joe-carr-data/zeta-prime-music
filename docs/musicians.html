@@ -104,29 +104,29 @@
     <p>An observation rather than a design choice: the first six zeros land near <b>E, B, D, F, G, A</b>, an E minor seventh with an added 11th and a flat 9th, the colour of the Phrygian mode. Since each zero's loudness is 1/|ρ|, this low chord dominates what you hear. Each partial also has a slow tremolo that follows its own wave cos(γ ln x) at the current point on the number line; higher zeros pulse faster.</p>
 
     <h2 id="melody">3 · The melody: primes as harmonics</h2>
-    <p>Every spike sits on a whole number n. The piece hears n as <b>the n-th harmonic of G2 (98 Hz)</b>, folded down by octaves into one register, so the primes become the prime-limit intervals of just intonation.</p>
+    <p>Every spike sits on a whole number n. The piece hears n as <b>the n-th harmonic of G2 (98 Hz)</b>, folded down by octaves into one octave and then raised one octave for every factor of 2<sup>2.5</sup> ≈ 5.7 in n (at most three), so small numbers sound low and larger ones higher. The primes become the prime-limit intervals of just intonation.</p>
     <figure class="figure">
       <svg id="clock" viewBox="0 0 760 420" role="img" aria-label="Interval clock: one octave as a circle of 1200 cents starting at G, with the twelve equal-tempered notes as ticks and the primes and prime powers up to 31 placed at their exact just-intonation positions."></svg>
       <figcaption>The octave as a clock, starting at G. Grey ticks are the twelve equal-tempered notes; red dots are primes, blue dots prime powers, at their exact positions. 3 sits almost on D, 5 a little flat of B, 7, 11 and 13 fall between the keys.</figcaption>
     </figure>
     <div class="table-wrap"><table>
-      <thead><tr><th>n</th><th>Kind</th><th>Interval above G</th><th>Cents</th><th>Heard as</th><th>Level</th></tr></thead>
+      <thead><tr><th>n</th><th>Kind</th><th>Interval above G</th><th>Cents</th><th>Heard as</th><th>Level vs a prime</th></tr></thead>
       <tbody>
         <tr><td class="num p">2</td><td>prime</td><td>octave (tonic)</td><td class="num">0</td><td>G2</td><td class="num">0 dB</td></tr>
         <tr><td class="num p">3</td><td>prime</td><td>perfect fifth 3/2</td><td class="num">702</td><td>D3 +2¢</td><td class="num">0 dB</td></tr>
-        <tr><td class="num pp">4</td><td>2²</td><td>octave</td><td class="num">0</td><td>G3 (bell)</td><td class="num">−6 dB</td></tr>
+        <tr><td class="num pp">4</td><td>2²</td><td>octave</td><td class="num">0</td><td>G3 (bell)</td><td class="num">−10 dB</td></tr>
         <tr><td class="num p">5</td><td>prime</td><td>major third 5/4</td><td class="num">386</td><td>B2 −14¢</td><td class="num">0 dB</td></tr>
         <tr><td class="num p">7</td><td>prime</td><td>harmonic seventh 7/4</td><td class="num">969</td><td>F4 −31¢</td><td class="num">0 dB</td></tr>
-        <tr><td class="num pp">8</td><td>2³</td><td>octave</td><td class="num">0</td><td>G4 (bell)</td><td class="num">−9.5 dB</td></tr>
-        <tr><td class="num pp">9</td><td>3²</td><td>major ninth 9/8</td><td class="num">204</td><td>A4 +4¢ (bell)</td><td class="num">−6 dB</td></tr>
+        <tr><td class="num pp">8</td><td>2³</td><td>octave</td><td class="num">0</td><td>G4 (bell)</td><td class="num">−13.5 dB</td></tr>
+        <tr><td class="num pp">9</td><td>3²</td><td>major ninth 9/8</td><td class="num">204</td><td>A4 +4¢ (bell)</td><td class="num">−10 dB</td></tr>
         <tr><td class="num p">11</td><td>prime</td><td>undecimal tritone 11/8</td><td class="num">551</td><td>between C and C♯</td><td class="num">0 dB</td></tr>
         <tr><td class="num p">13</td><td>prime</td><td>neutral sixth 13/8</td><td class="num">841</td><td>between E♭ and E</td><td class="num">0 dB</td></tr>
-        <tr><td class="num pp">16</td><td>2⁴</td><td>octave</td><td class="num">0</td><td>G4 (bell)</td><td class="num">−12 dB</td></tr>
+        <tr><td class="num pp">16</td><td>2⁴</td><td>octave</td><td class="num">0</td><td>G4 (bell)</td><td class="num">−16 dB</td></tr>
         <tr><td class="num p">17</td><td>prime</td><td>small semitone 17/16</td><td class="num">105</td><td>G♯3 +5¢</td><td class="num">0 dB</td></tr>
         <tr><td class="num p">19</td><td>prime</td><td>minor third 19/16</td><td class="num">298</td><td>B♭3 −2¢</td><td class="num">0 dB</td></tr>
         <tr><td class="num p">23</td><td>prime</td><td>23/16</td><td class="num">628</td><td>C♯4 +28¢</td><td class="num">0 dB</td></tr>
-        <tr><td class="num pp">25</td><td>5²</td><td>augmented fifth 25/16</td><td class="num">773</td><td>E♭5 −27¢ (bell)</td><td class="num">−6 dB</td></tr>
-        <tr><td class="num pp">27</td><td>3³</td><td>Pythagorean sixth 27/16</td><td class="num">906</td><td>E5 +6¢ (bell)</td><td class="num">−9.5 dB</td></tr>
+        <tr><td class="num pp">25</td><td>5²</td><td>augmented fifth 25/16</td><td class="num">773</td><td>E♭5 −27¢ (bell)</td><td class="num">−10 dB</td></tr>
+        <tr><td class="num pp">27</td><td>3³</td><td>Pythagorean sixth 27/16</td><td class="num">906</td><td>E5 +6¢ (bell)</td><td class="num">−13.5 dB</td></tr>
         <tr><td class="num p">29</td><td>prime</td><td>29/16</td><td class="num">1030</td><td>F4 +30¢</td><td class="num">0 dB</td></tr>
         <tr><td class="num p">31</td><td>prime</td><td>31/16, quarter-tone below the octave</td><td class="num">1145</td><td>F♯4 +45¢</td><td class="num">0 dB</td></tr>
       </tbody>
@@ -147,9 +147,9 @@
     <div class="table-wrap"><table>
       <thead><tr><th>Peak at x</th><th>Played as</th><th>Becomes, with enough zeros</th></tr></thead>
       <tbody>
-        <tr><td class="num">1.95</td><td>≈ G2</td><td><span class="p">2</span> (G2)</td></tr>
-        <tr><td class="num">3.03</td><td>≈ D3</td><td><span class="p">3</span> (D3)</td></tr>
-        <tr><td class="num">4.74</td><td>B♭2 −6¢</td><td><span class="p">5</span> (B2 −14¢)</td></tr>
+        <tr><td class="num">1.94</td><td>G2 −53¢</td><td><span class="p">2</span> (G2)</td></tr>
+        <tr><td class="num">3.03</td><td>D3 +20¢</td><td><span class="p">3</span> (D3)</td></tr>
+        <tr><td class="num">4.74</td><td>B♭2 −8¢</td><td><span class="p">5</span> (B2 −14¢)</td></tr>
         <tr><td class="num">7.39</td><td>F♯4 −37¢</td><td><span class="p">7</span> (F4 −31¢)</td></tr>
         <tr><td class="num">11.53</td><td>C♯4 +33¢</td><td><span class="p">11</span> (C♯4 −49¢)</td></tr>
         <tr><td class="num">18.0</td><td>A3 +4¢</td><td><span class="p">17</span> and <span class="p">19</span> split apart</td></tr>
@@ -168,7 +168,7 @@
     <p>Movement III leaves the bar and sweeps x exponentially from 31.5 to 260, so each second covers the same <i>ratio</i> of the number line. Measured that way primes get denser further out, so the notes speed up: an accelerando built into the number line.</p>
 
     <h2 id="dynamics">7 · Dynamics come from arithmetic</h2>
-    <p>The height of a spike, after normalisation, is Λ(n)/ln n: <b>1 at a prime, ½ at a square, ⅓ at a cube</b>. That is used directly as loudness: primes at full level, squares (4, 9, 25) at −6 dB, cubes (8, 27) at −9.5 dB, and 16 at −12 dB (often too quiet to be detected at all, honestly, because its spike really is the smallest). The accent pattern of every bar is the arithmetic of its numbers.</p>
+    <p>The height of a spike, after normalisation, is Λ(n)/ln n: <b>1 at a prime, ½ at a square, ⅓ at a cube</b>. That is used directly as loudness: primes at full level, squares (4, 9, 25) at −6 dB, cubes (8, 27) at −9.5 dB, 16 at −12 dB (often too quiet to be detected at all, because its spike really is the smallest). Prime powers also play on bells mixed 4 dB under the plucks, so relative to a prime they sound at −10, −13.5 and −16 dB. The accent pattern of every bar is the arithmetic of its numbers.</p>
     <p>With a fixed number of zeros, primes far along the number line are resolved less sharply and come out softer, about −2.6 dB by x ≈ 220 with 500 zeros, so movement III fades slightly towards the edge of what the zeros can resolve.</p>
 
     <h2 id="form">8 · Form</h2>

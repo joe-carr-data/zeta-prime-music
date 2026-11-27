@@ -127,14 +127,17 @@ def render_video(cfg: CompositionConfig, audio: Path, out: Path, spec: VideoSpec
     counter = fig.text(0.5, 0.82 if portrait else 0.79, "", ha="center", color="#f2c14e", fontsize=big * 0.75)
     formula = r"$\psi'(x) = 1 - 2x^{-1/2}\sum_{\gamma} \cos(\gamma \ln x)$"
     gloss = r"each zero $\rho=\frac{1}{2}+i\gamma$ is a wave; the primes are where they agree"
+    formula_line = None  # landscape only: the caption temporarily takes its place
     if portrait:
         fig.text(0.5, 0.20, formula, ha="center", color="#c8c6c3", fontsize=big * 0.6)
         fig.text(0.5, 0.16, gloss, ha="center", color="#9aa0aa", fontsize=big * 0.42)
     else:
-        fig.text(0.5, 0.06, formula + "   —   " + gloss, ha="center", color="#9aa0aa", fontsize=big * 0.45)
+        formula_line = fig.text(
+            0.5, 0.06, formula + "   —   " + gloss, ha="center", color="#9aa0aa", fontsize=big * 0.45
+        )
     labels: list = []
-    caption = fig.text(0.5, 0.085 if portrait else 0.115, spec.caption or "", ha="center", va="center", color=FG,
-                       fontsize=big * 0.62, weight="bold", wrap=True, alpha=0.0,
+    caption = fig.text(0.5, 0.085 if portrait else 0.055, spec.caption or "", ha="center", va="center", color=FG,
+                       fontsize=big * 0.62, weight="bold", wrap=True, alpha=0.0, parse_math=False,
                        bbox={"boxstyle": "round,pad=0.6", "fc": "#000000", "ec": "none", "alpha": 0.0})  # fmt: skip
     card = fig.add_axes((0, 0, 1, 1), facecolor=BG)
     card.set_axis_off()
@@ -209,6 +212,8 @@ def render_video(cfg: CompositionConfig, audio: Path, out: Path, spec: VideoSpec
                     a = float(np.clip(min(rel / 0.3, (CAPTION_SECONDS - rel) / 0.5), 0.0, 1.0))
                     caption.set_alpha(a)
                     caption.get_bbox_patch().set_alpha(0.55 * a)
+                    if formula_line is not None:  # landscape: the caption takes the formula's line
+                        formula_line.set_alpha(1.0 - a)
                 if spec.end_card:
                     a = float(np.clip((END_CARD_SECONDS - left) / 0.5, 0.0, 1.0))
                     card_bg.set_alpha(0.92 * a)

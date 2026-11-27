@@ -29,7 +29,8 @@ h1 { font: 700 clamp(28px, 5vw, 44px)/1.05 var(--display); letter-spacing: -0.01
 .lead b { color: var(--ink); font-weight: 600; }
 
 .instrument { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 16px; display: grid; gap: 14px; }
-.plot { position: relative; width: 100%; aspect-ratio: 2.4 / 1; min-height: 220px; max-width: 100%; }
+.plot { position: relative; width: 100%; aspect-ratio: 2.4 / 1; max-width: 100%; }
+@media (max-width: 600px) { .plot { aspect-ratio: 1.35 / 1; } }
 canvas { width: 100%; height: 100%; display: block; }
 .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; }
 .zeros { display: flex; align-items: center; gap: 10px; flex: 1 1 280px; min-width: 0; }
@@ -101,7 +102,7 @@ h2 { font: 700 18px var(--display); margin: 0 0 10px; }
         <li><span class="k">Drone</span><span>One sine per zero, pitched in proportion to γ (the first zero, γ₁ = 14.1347, is E2). The zeros are not a harmonic series, so the chord is metallic.</span></li>
         <li><span class="k" style="color: var(--prime)">Primes</span><span>Plucked strings at the peaks that land on a prime. Pitch is that harmonic of G2 folded into one octave: 3 is a fifth, 5 a major third, 7 a harmonic seventh.</span></li>
         <li><span class="k" style="color: var(--power)">Powers</span><span>Bells at 4, 8, 9, 16, 25, 27: the smaller spikes at prime powers. Their weight is 1/k of a prime's, so they ring softer.</span></li>
-        <li><span class="k" style="color: var(--ghost)">Ghosts</span><span>Peaks that sit between integers because too few zeros are active. They play out of tune and disappear as you add zeros.</span></li>
+        <li><span class="k" style="color: var(--muted)"><span class="dot" style="background: var(--ghost); margin-right: 6px"></span>Ghosts</span><span>Peaks that sit between integers because too few zeros are active. They play out of tune and disappear as you add zeros.</span></li>
       </ul>
       <div class="formula">ψ′(x) = 1 − 2x<sup>−1/2</sup> Σ<sub>γ</sub> cos(γ ln x) − 1/(x(x²−1))</div>
       <p class="note">The plot shows the zeros' term, normalised so a prime's spike reaches about 1 and a prime square's about ½. Zeros use a Gaussian taper to soften ringing.</p>

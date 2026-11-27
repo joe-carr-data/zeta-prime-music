@@ -149,6 +149,12 @@ def test_render_hero_smoke(tmp_path):
 def test_caption_and_end_card_render(tiny_config, tiny_wav, tmp_path):
     out = render_video(
         tiny_config, tiny_wav, tmp_path / "c.mp4",
-        VideoSpec(aspect="9:16", fps=5, start=3.0, end=7.0, caption="Add the zeros one by one", end_card=True),
+        VideoSpec(aspect="9:16", fps=5, start=3.0, end=7.0, caption="Costs $5 or $x^$ — literal", end_card=True),
     )  # fmt: skip
     assert int({s["codec_type"]: s for s in _probe(out)["streams"]}["video"]["nb_read_frames"]) == 20
+
+
+@needs_ffmpeg
+def test_landscape_caption_renders(tiny_config, tiny_wav, tmp_path):
+    out = render_video(tiny_config, tiny_wav, tmp_path / "l.mp4", VideoSpec(fps=5, start=3.0, end=4.0, caption="$x^$"))
+    assert out.exists()

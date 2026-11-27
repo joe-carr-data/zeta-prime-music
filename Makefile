@@ -47,7 +47,7 @@ clips: render $(PROP)/B_prime_pulse.wav
 	mkdir -p $(OUT)/clips
 	uv run zeta-music video compositions/critical_strip.toml --audio $(OUT)/critical_strip.wav --aspect 9:16 --start 16 --end 64 --caption "One zero, one wave: the notes are out of tune" --end-card -o $(OUT)/clips/1_first_zeros.mp4
 	uv run zeta-music video compositions/critical_strip.toml --audio $(OUT)/critical_strip.wav --aspect 9:16 --start 64 --end 112 --caption "Add more zeros and the primes lock into tune" --end-card -o $(OUT)/clips/2_primes_lock_in.mp4
-	uv run zeta-music video compositions/critical_strip.toml --audio $(OUT)/critical_strip.wav --aspect 9:16 --start 112 --end 156 --caption "500 zeros: twin primes 101 and 103 ring apart" --end-card -o $(OUT)/clips/3_further_out.mp4
+	uv run zeta-music video compositions/critical_strip.toml --audio $(OUT)/critical_strip.wav --aspect 9:16 --start 112 --end 156 --caption "Hundreds of zeros: twin primes 101 and 103 ring apart" --end-card -o $(OUT)/clips/3_further_out.mp4
 	uv run zeta-music video compositions/critical_strip.toml --audio $(OUT)/critical_strip.wav --aspect 9:16 --start 172 --end 208 --caption "Take the zeros away and the primes dissolve" --end-card -o $(OUT)/clips/4_reflection.mp4
 	uv run zeta-music video compositions/proposals/prime_pulse.toml --audio $(PROP)/B_prime_pulse.wav --aspect 9:16 --start 10 --end 70 --caption "Add the zeros of ζ one by one and hear the primes come into tune" --end-card -o $(OUT)/clips/5_prime_pulse_full_arc.mp4
 

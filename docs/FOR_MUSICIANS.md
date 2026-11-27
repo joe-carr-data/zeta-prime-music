@@ -74,23 +74,23 @@ folded down by octaves into one register: `pitch = 98 Hz × n / 2^⌊log₂ n⌋
 rule (one octave per factor 2^2.5 in n, at most three). So the primes become the prime-limit
 intervals of just intonation:
 
-| n | kind | interval above G | cents | heard as | weight |
+| n | kind | interval above G | cents | heard as | level vs a prime |
 |---|---|---|---|---|---|
 | 2 | prime | octave (tonic) | 0 | G2 | 0 dB |
 | 3 | prime | perfect fifth 3/2 | 702 | D3 +2¢ | 0 dB |
-| 4 | 2² | octave | 0 | G3 (bell) | −6 dB |
+| 4 | 2² | octave | 0 | G3 (bell) | −10 dB |
 | 5 | prime | major third 5/4 | 386 | B2 −14¢ | 0 dB |
 | 7 | prime | harmonic seventh 7/4 | 969 | F4 −31¢ | 0 dB |
-| 8 | 2³ | octave | 0 | G4 (bell) | −9.5 dB |
-| 9 | 3² | major ninth 9/8 | 204 | A4 +4¢ (bell) | −6 dB |
+| 8 | 2³ | octave | 0 | G4 (bell) | −13.5 dB |
+| 9 | 3² | major ninth 9/8 | 204 | A4 +4¢ (bell) | −10 dB |
 | 11 | prime | undecimal tritone 11/8 | 551 | between C and C♯ (C♯4 −49¢) | 0 dB |
 | 13 | prime | tridecimal neutral sixth 13/8 | 841 | between E♭ and E (E♭4 +41¢) | 0 dB |
-| 16 | 2⁴ | octave | 0 | G4 (bell) | −12 dB |
+| 16 | 2⁴ | octave | 0 | G4 (bell) | −16 dB |
 | 17 | prime | 17/16, a small semitone | 105 | G♯3 +5¢ | 0 dB |
 | 19 | prime | 19/16, a minor third | 298 | B♭3 −2¢ | 0 dB |
 | 23 | prime | 23/16 | 628 | C♯4 +28¢ | 0 dB |
-| 25 | 5² | augmented fifth 25/16 | 773 | E♭5 −27¢ (bell) | −6 dB |
-| 27 | 3³ | Pythagorean major sixth 27/16 | 906 | E5 +6¢ (bell) | −9.5 dB |
+| 25 | 5² | augmented fifth 25/16 | 773 | E♭5 −27¢ (bell) | −10 dB |
+| 27 | 3³ | Pythagorean major sixth 27/16 | 906 | E5 +6¢ (bell) | −13.5 dB |
 | 29 | prime | 29/16 | 1030 | F4 +30¢ | 0 dB |
 | 31 | prime | 31/16, a quarter-tone below the octave | 1145 | F♯4 +45¢ | 0 dB |
 
@@ -121,9 +121,9 @@ ghost (F♯4 −37¢ instead of 7's F4 −31¢). In the first bar, with a single
 
 | peak at x | played as | becomes, once enough zeros are added |
 |---|---|---|
-| 1.95 | ≈ G2 | 2 (G2) |
-| 3.03 | ≈ D3 | 3 (D3) |
-| 4.74 | B♭2 −6¢ | 5 (B2 −14¢) |
+| 1.94 | G2 −53¢ | 2 (G2) |
+| 3.03 | D3 +20¢ | 3 (D3 +2¢) |
+| 4.74 | B♭2 −8¢ | 5 (B2 −14¢) |
 | 7.39 | F♯4 −37¢ | 7 (F4 −31¢) |
 | 11.53 | C♯4 +33¢ | 11 (C♯4 −49¢) |
 | 18.0 | A3 +4¢ | 17 and 19 split apart |
@@ -167,6 +167,9 @@ a cube**. That is used directly as the note's loudness:
 - cubes (8, 27) at −9.5 dB;
 - 16 = 2⁴ at −12 dB (often too quiet to be detected at all: honest, its spike really is the
   smallest).
+
+Prime powers also play on bells mixed 4 dB under the plucks, so relative to a prime they sound at
+−10, −13.5 and −16 dB.
 
 So the accent pattern of every bar is the arithmetic of its numbers. One more effect is audible:
 with a fixed number of zeros, primes far along the number line are resolved less sharply and come

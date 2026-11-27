@@ -7,7 +7,7 @@
 <meta name="description" content="The music of the primes: a composition, a video and a playable instrument generated from the zeros of the Riemann zeta function.">
 <meta property="og:title" content="Zeta Prime Music">
 <meta property="og:description" content="Add the zeros of the Riemann zeta function one by one and hear the primes come into tune.">
-<meta property="og:image" content="media/critical-strip-poster.jpg">
+<meta property="og:image" content="https://joe-carr-data.github.io/zeta-prime-music/media/critical-strip-poster.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
@@ -42,7 +42,8 @@
       </div>
     </div>
     <div class="hero-media">
-      <img src="media/hero.gif" width="720" height="360" alt="Animation: as the number of zeta zeros grows from 1 to 200, a wavy curve sharpens into spikes exactly at the primes 2, 3, 5, 7, 11, 13 and so on, with smaller spikes at prime powers.">
+      <video id="hero-video" width="960" height="480" autoplay muted loop playsinline poster="media/hero-poster.jpg" aria-label="Animation: as the number of zeta zeros grows from 1 to 200, a wavy curve sharpens into spikes exactly at the primes 2, 3, 5, 7, 11, 13 and so on, with smaller spikes at prime powers."><source src="media/hero.mp4" type="video/mp4"></video>
+      <button id="hero-toggle" class="btn" type="button" style="margin:10px; font-size:13px; padding:6px 12px">Pause animation</button>
     </div>
   </div>
 </div>
@@ -63,7 +64,7 @@
         <div class="card">
           <span class="tag">Alternative</span>
           <h3 style="margin-top:12px">Critical Strip (revised)</h3>
-          <p class="meta">3:08 · call and response in IV · ends on 3 → 2</p>
+          <p class="meta">3:12 · call and response in IV · ends on 3 → 2</p>
           <audio controls preload="none" src="media/audio/critical-strip-revised.m4a"></audio>
         </div>
       </div>
@@ -102,7 +103,7 @@
       </div>
       <div class="grid-3" style="margin-top:28px">
         <div class="card"><h3>A tuning process</h3><p>Movement II is a process piece: the same bar twelve times, each with more zeros. You hear the mathematics converge as intonation.</p></div>
-        <div class="card"><h3>Arithmetic dynamics</h3><p>Loudness is the spike height: full at primes, −6 dB at squares, −9.5 dB at cubes. The accent pattern is the arithmetic of the numbers.</p></div>
+        <div class="card"><h3>Arithmetic dynamics</h3><p>Loudness is the spike height: full at primes, half (−6 dB) at squares, a third (−9.5 dB) at cubes, and prime powers ring on bells set 4 dB lower still. The accent pattern is the arithmetic of the numbers.</p></div>
         <div class="card"><h3>Two pitch worlds</h3><p>An inharmonic drone rooted on E (the zeros) under a just-intoned melody in G (the primes): E minor and G major at once.</p></div>
       </div>
       <p style="margin-top:28px"><a href="musicians.html">Read the full guide for musicians →</a></p>
@@ -169,6 +170,11 @@ function draw() {
 }
 draw();
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+// hero animation: honour reduced motion, and let anyone pause it
+const hv = document.getElementById("hero-video"), ht = document.getElementById("hero-toggle");
+function setPlaying(on) { if (on) { hv.play().catch(() => {}); } else { hv.pause(); } ht.textContent = on ? "Pause animation" : "Play animation"; }
+if (matchMedia("(prefers-reduced-motion: reduce)").matches) setPlaying(false);
+ht.addEventListener("click", () => setPlaying(hv.paused));
 </script>
 </body>
 </html>
