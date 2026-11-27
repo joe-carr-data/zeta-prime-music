@@ -8,7 +8,7 @@ from dataclasses import MISSING, dataclass, field, fields
 from pathlib import Path
 from typing import Any, Literal
 
-__all__ = ["CompositionConfig", "MixConfig", "Section", "config_from_dict", "load_config"]
+__all__ = ["CompositionConfig", "MixConfig", "Section", "config_from_dict", "load_config", "load_score_config"]
 
 Sweep = Literal["linear", "exp"]
 Taper = Literal["none", "hann", "gauss", "fejer"]
@@ -182,13 +182,31 @@ def _build(cls: type, data: dict[str, Any], where: str) -> Any:
         raise ValueError(f"{where}: {exc}") from None
 
 
-def load_config(path: str | Path) -> CompositionConfig:
-    path = Path(path)
+def _read_toml(path: Path) -> dict[str, Any]:
     try:
-        raw = tomllib.loads(path.read_text())
+        return tomllib.loads(path.read_text())
     except tomllib.TOMLDecodeError as exc:
         raise ValueError(f"{path}: invalid TOML: {exc}") from None
-    return config_from_dict(raw, str(path))
+
+
+def load_config(path: str | Path) -> CompositionConfig:
+    path = Path(path)
+    return config_from_dict(_read_toml(path), str(path))
+
+
+def load_score_config(path: str | Path) -> tuple[CompositionConfig, dict[str, Any] | None]:
+    """Load a composition that may also carry a ``[produce]`` table (a produced version's score).
+
+    The composition part is validated exactly as by :func:`load_config` (unknown keys are still
+    errors); the ``[produce]`` table is split off and returned as parsed TOML, or ``None`` if the
+    score has none. Its full validation belongs to ``zeta_music.produce``.
+    """
+    path = Path(path)
+    raw = _read_toml(path)
+    produce = raw.pop("produce", None)
+    if produce is not None and not isinstance(produce, dict):
+        raise ValueError(f"{path}: [produce] must be a table")
+    return config_from_dict(raw, str(path)), produce
 
 
 def config_from_dict(raw: dict[str, Any], where: str) -> CompositionConfig:

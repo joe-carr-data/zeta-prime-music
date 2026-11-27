@@ -1,5 +1,5 @@
 # Every deliverable builds from a clean clone: `make all` (needs ffmpeg for video/clips).
-.PHONY: install test lint render proposals literal explain video clips web hero site produce all
+.PHONY: install test lint render proposals literal explain video clips video-j web hero site produce all
 
 OUT := output
 PROP := $(OUT)/proposals
@@ -50,6 +50,35 @@ clips: render $(PROP)/B_prime_pulse.wav
 	uv run zeta-music video compositions/critical_strip.toml --audio $(OUT)/critical_strip.wav --aspect 9:16 --start 112 --end 156 --caption "Hundreds of zeros: twin primes 101 and 103 ring apart" --end-card -o $(OUT)/clips/3_further_out.mp4
 	uv run zeta-music video compositions/critical_strip.toml --audio $(OUT)/critical_strip.wav --aspect 9:16 --start 172 --end 208 --caption "Take the zeros away and the primes dissolve" --end-card -o $(OUT)/clips/4_reflection.mp4
 	uv run zeta-music video compositions/proposals/prime_pulse.toml --audio $(PROP)/B_prime_pulse.wav --aspect 9:16 --start 10 --end 70 --caption "Add the zeros of ζ one by one and hear the primes come into tune" --end-card -o $(OUT)/clips/5_prime_pulse_full_arc.mp4
+
+# Proposal J (produced radio edit): full video + five vertical clips synced to the produced master.
+# Produce it first (needs the Kontakt states, see the score), or point J_WAV at an existing master.
+J_SCORE := compositions/commercial/critical_strip_radio_kontakt.toml
+J_WAV ?= $(OUT)/commercial_j/critical_strip_radio_kontakt.wav
+J_DIR := $(PROP)/J_video
+J_VIDEO := uv run zeta-music video $(J_SCORE) --audio $(J_WAV) --title "The Sound of the Primes" --end-card
+J_CLIP := $(J_VIDEO) --aspect 9:16
+
+$(J_DIR)/J_full.mp4: $(J_SCORE) $(J_WAV)
+	@mkdir -p $(J_DIR)
+	$(J_VIDEO) -o $@
+$(J_DIR)/J_1_tuning_in.mp4: $(J_SCORE) $(J_WAV)
+	@mkdir -p $(J_DIR)
+	$(J_CLIP) --start 16 --end 64 --caption "Add the zeros of ζ one by one and hear the primes come into tune" -o $@
+$(J_DIR)/J_2_chorus.mp4: $(J_SCORE) $(J_WAV)
+	@mkdir -p $(J_DIR)
+	$(J_CLIP) --start 72 --end 112 --caption "500 zeros: the sound of the primes" -o $@
+$(J_DIR)/J_3_further_out.mp4: $(J_SCORE) $(J_WAV)
+	@mkdir -p $(J_DIR)
+	$(J_CLIP) --start 112 --end 152 --caption "Further out, the primes thin — and speed up" -o $@
+$(J_DIR)/J_4_outro.mp4: $(J_SCORE) $(J_WAV)
+	@mkdir -p $(J_DIR)
+	$(J_CLIP) --start 136 --end 176 --caption "Take the zeros away and the primes dissolve into 3 … 2" -o $@
+$(J_DIR)/J_5_best_of.mp4: $(J_SCORE) $(J_WAV)
+	@mkdir -p $(J_DIR)
+	$(J_CLIP) --start 56 --end 112 --caption "13 zeros, then 34, 200, 500: the primes lock into tune" -o $@
+
+video-j: $(addprefix $(J_DIR)/,J_full.mp4 J_1_tuning_in.mp4 J_2_chorus.mp4 J_3_further_out.mp4 J_4_outro.mp4 J_5_best_of.mp4)
 
 web:
 	uv run python scripts/build_web.py
