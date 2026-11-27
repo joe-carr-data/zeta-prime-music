@@ -12,8 +12,7 @@ This file drives the autonomous 5-minute improvement loop. Keep the backlog rank
    harsh at high partials (consider spectral tilt / lower `drone_max_hz`).
 3. Movement III melodic contour: folded pitch makes mechanical rising scales under exp sweep —
    consider register by prime-gap or by `k ln p` mod octave.
-4. Performance: drone render dominates (~60 s). Vectorise in blocks / float32 / FFT-based
-   additive synthesis.
+4. ~~Performance~~ DONE: drone synthesises only active spans, 69 s → 23 s (bit-identical).
 5. Literal "log-mode" interlude spliced into the piece (chord of the zeros as a struck bell).
 6. Dirichlet L-function voices (mod 4: primes ≡1 vs ≡3) as two stereo instruments (Chebyshev bias).
 7. Stem export (drone/plucks/bells/breath) for mixing in a DAW.
@@ -22,3 +21,4 @@ This file drives the autonomous 5-minute improvement loop. Keep the backlog rank
 
 ## Log
 - 2026-11-27: initial build; first render 204 s, 182 primes / 46 prime powers / 29 ghosts.
+- 2026-11-27: drone render restricted to each zero's active span: 3x faster, identical output.

@@ -279,12 +279,20 @@ def _render_drone(cfg: CompositionConfig, tl: Timeline, gammas: FloatArray, n_au
     norm = 1.0 / np.sqrt(np.maximum(amps_sq, 1.0))
     norm = synth.smooth(norm, tl.rate, 0.5) * tl.drone_gain
     for f, amp, pan in rows:
-        env = _upsample(amp * norm, tl.rate, n_audio, sr)
-        phase0 = rng.uniform(0, 2 * np.pi)
-        tone = env * np.sin(2 * np.pi * f * t + phase0)
+        phase0 = rng.uniform(0, 2 * np.pi)  # drawn unconditionally: keeps output seed-stable
+        ctrl = amp * norm
+        active = np.flatnonzero(ctrl > 1e-7)
+        if active.size == 0:
+            continue
+        # synthesise only the span where this zero is switched on
+        a = max(int((active[0] - 1) / tl.rate * sr), 0)
+        b = min(int((active[-1] + 1) / tl.rate * sr) + 1, n_audio)
+        ts = t[a:b]
+        env = np.interp(ts, np.arange(ctrl.size) / tl.rate, ctrl)
+        tone = env * np.sin(2 * np.pi * f * ts + phase0)
         theta = (pan + 1.0) * np.pi / 4.0
-        out[:, 0] += tone * np.cos(theta)
-        out[:, 1] += tone * np.sin(theta)
+        out[a:b, 0] += tone * np.cos(theta)
+        out[a:b, 1] += tone * np.sin(theta)
     return out
 
 
