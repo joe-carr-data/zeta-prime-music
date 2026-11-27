@@ -30,7 +30,7 @@ the primes one by one, until the whole number line is in tune.
 the instruments.**
 
 > [!NOTE]
-> **Why now.** A proof of the Riemann Hypothesis was announced in November 2026: Levent Alpöge released a
+> **A proof of the Riemann Hypothesis has just been announced.** In November 2026 Levent Alpöge released a
 > claimed proof, with a formal version checked in Lean, and mathematicians are now examining it. The zeros you
 > hear have long been computed to lie on Riemann's critical line; if the proof holds, all infinitely many do.
 

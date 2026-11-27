@@ -23,7 +23,7 @@ First public release.
   convolution reverb and mastering; 24-bit WAV, event JSON and microtonal MIDI export.
 - Score format (TOML) validated at load time, with errors naming the offending field.
 
-### Media and outreach
+### Media and website
 - Visualiser video and vertical clips (`zeta-music video`), README hero animation
   (`zeta-music animate`), interactive web instrument and a GitHub Pages site with a guide for
   musicians.
