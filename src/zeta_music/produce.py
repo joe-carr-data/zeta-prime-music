@@ -187,6 +187,7 @@ class VoiceSpec:
     lowpass_hz: float | None = None
     transpose: float = 0.0  # semitones
     presence_db: float = 0.0  # high shelf at 3.5 kHz
+    load_wait: float = 3.0  # s to let a plugin instrument load its samples before rendering
     fx: tuple[FxSpec, ...] = ()
 
     def __post_init__(self) -> None:
@@ -818,7 +819,15 @@ def _load_plugin(path: str, plugin_name: str | None, state: str | None, params: 
         if cls is None:
             raise ValueError(f"unknown pedalboard effect {path!r}")
         return cls(**(params or {}))
-    plugin = pedalboard.load_plugin(str(_expand(path)), plugin_name=plugin_name, parameter_values=params or None)
+    file = _expand(path)
+    if not file.exists():
+        raise FileNotFoundError(f"plugin not found: {file}")
+    try:
+        plugin = pedalboard.load_plugin(
+            str(file), plugin_name=plugin_name, parameter_values=params or None, initialization_timeout=30.0
+        )
+    except ImportError as exc:  # pedalboard reports every load failure as ImportError
+        raise RuntimeError(f"could not load {file}: {exc}") from None
     if state:
         plugin.raw_state = _expand(state).read_bytes()
     return plugin
@@ -827,9 +836,15 @@ def _load_plugin(path: str, plugin_name: str | None, state: str | None, params: 
 def render_plugin(part: Part, voice: VoiceSpec, tuning: str, sr: int, n: int) -> Audio:
     """Render one voice through an AU/VST3 instrument (pedalboard), restoring its saved state."""
     assert voice.target is not None
+    import time
+
     plugin = _load_plugin(voice.target, voice.plugin_name, voice.state)
     if not getattr(plugin, "is_instrument", False):
         raise ValueError(f"voice {voice.name!r}: {voice.target} is not an instrument plugin")
+    # Sample players (Kontakt) stream their library in the background after a state restore:
+    # wait, then run a few seconds of silence through the plugin before the real render.
+    time.sleep(voice.load_wait)
+    plugin([], duration=2.0, sample_rate=sr, num_channels=2, buffer_size=512, reset=False)
     msgs = part_messages(part, voice, tuning, _channels_for(voice, tuning, 0))
     events = [(m.bytes(), float(t)) for t, _, m in msgs]
     audio = plugin(events, duration=n / sr, sample_rate=sr, num_channels=2, buffer_size=512)
