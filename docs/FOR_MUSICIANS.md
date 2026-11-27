@@ -23,7 +23,7 @@ smooth wobble. Add a few hundred and the waves cancel almost everywhere, except 
 | moving along the number line | **time** |
 
 The central gesture: the same bar is replayed while zeros are added. You hear wrong notes slide
-into tune until the bar plays the primes exactly.
+into tune until the bar plays the primes.
 
 ## 2. Two scales that meet: inharmonic drone, harmonic melody
 
@@ -226,7 +226,7 @@ There is no bass line or drum part: nothing is added that the zeros did not prod
 |---|---|---|---|
 | 0:00 | Intro | 0 → 1 | the pad and the first zero |
 | 0:16 | Tuning in | 1, 2, 3, 5, 8, 13, 34, 200 | eight bars; wrong notes slide onto the primes |
-| 1:20 | Chorus | 500 | everything locks in on the exact primes |
+| 1:20 | Chorus | 500 | everything locks in on the primes |
 | 1:52 | Further out | 500 | x runs from 31.5 to 130: an accelerando through larger primes |
 | 2:16 | Chorus | 500 | back to the bar |
 | 2:32 | Outro | 55, 13 | the bar runs backwards while zeros are removed; it ends on 3, then 2 |
@@ -266,8 +266,9 @@ individual waves drawn under their sum.
 
 ## 10. Glossary
 
-- **Zero (of ζ)** — a complex number ρ = ½ + iγ where the zeta function vanishes. γ is its
-  "frequency". The Riemann Hypothesis says the real part is always ½.
+- **Zero (of ζ)** — a complex number ρ where the zeta function vanishes. The nontrivial zeros are
+  written ρ = ½ + iγ; γ is the "frequency". The Riemann Hypothesis says every nontrivial zero has
+  real part ½.
 - **Explicit formula** — the identity writing the primes as a sum of one wave per zero.
 - **Prime power** — p^k (4, 8, 9, 25, 27 …). Their spikes are 1/k as tall as a prime's.
 - **Salience** — the normalised spike height used as loudness (1 at primes, 1/k at p^k).

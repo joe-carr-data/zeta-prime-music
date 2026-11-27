@@ -4,7 +4,7 @@
 
 <p><b>Nobody wrote this music. It was hiding in the prime numbers.</b></p>
 
-<a href="https://joe-carr-data.github.io/zeta-prime-music/#listen"><img src="docs/media/hero.gif" width="820" alt="Each zero of the Riemann zeta function is a wave; add 200 of them and spikes appear exactly at the primes"></a>
+<a href="https://joe-carr-data.github.io/zeta-prime-music/#listen"><img src="docs/media/hero.gif" width="820" alt="Each zero of the Riemann zeta function is a wave; add 200 of them and spikes appear at the primes"></a>
 
 <p>
 <a href="https://joe-carr-data.github.io/zeta-prime-music/#listen"><img alt="Listen: The Sound of the Primes" src="https://img.shields.io/badge/%E2%96%B6%20listen-The%20Sound%20of%20the%20Primes-2dd4bf?style=for-the-badge&labelColor=0a0e16"></a>
@@ -26,7 +26,7 @@ Bernhard Riemann found that they are governed by a hidden set of numbers, the ze
 and that **each zero is a wave**. Play those waves together and wrong notes drift and wobble, then lock onto
 the primes one by one, until the whole number line is in tune.
 
-**No note was placed by hand. The peaks of the mathematics decide which notes sound, when, and how strongly; we only designed the rules that turn them into sound (the instruments, key, tempo, form and mix) and then let the zeros play.**
+**No note was placed by hand. The peaks of the explicit formula decide which piano and vibraphone notes sound, when, and how strongly, and the pad plays the zeros themselves. We only designed the rules that turn them into sound (the instruments, key, tempo, form and mix), then let the zeros play.**
 
 > [!NOTE]
 > A proof of the Riemann Hypothesis was announced in November 2026: Levent Alpöge released a
