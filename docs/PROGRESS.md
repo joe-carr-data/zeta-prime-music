@@ -7,7 +7,17 @@ This file drives the autonomous 5-minute improvement loop. Keep the backlog rank
   sonification, MIDI/JSON/plots, CLI, 42 tests, CI.
 
 ## Backlog (highest value first)
-1. review review of math + engine; act on findings.
+review findings (docs/reviews/review_2026-11-27_raw.log), fix in order:
+C2. Octave jump: x=1.9998→196 Hz vs x=2.0005→98 Hz. Register from integer n, detune by x*/n; same for pan.
+C1. salience_curve explodes (−3.9e10) when N→0 (intro). Normalise oscillatory term separately; guard N<1.
+C4. spike_density: empty_like keeps Fortran order → reshape copy → uninitialised output. Flat alloc + reshape; chunk>0.
+C6. detect_events treats any negative diff(x) as loop reset → descending sweeps lose notes. Carry explicit boundaries.
+C10. Stem normalisation cancels 1/k bell loudness cue. Calibrate voices at unit salience, shared gain.
+C3. Memory: 500 control envelopes 1.66 GB + 5 float64 stems. Normalise first, synthesise per-partial without retaining rows, mix sequentially.
+C9. Config validation (sweep literal, finite values, sr-dependent cutoffs).
+C7. KS decay calibration at high pitch (loop filter magnitude at f0).
+C8. MIDI channel allocation by release tick.
+C5. Document fixed-n Landau limit; window in ordinate space; test far-end salience (S(251)=0.71).
 2. Perceptual check of the render: spectral/loudness analysis per movement; check drone is not
    harsh at high partials (consider spectral tilt / lower `drone_max_hz`).
 3. Movement III melodic contour: folded pitch makes mechanical rising scales under exp sweep —
