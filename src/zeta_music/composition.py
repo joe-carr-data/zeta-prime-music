@@ -120,7 +120,7 @@ def _zero_weights(k: FloatArray, n: FloatArray, taper: str) -> FloatArray:
     presence = np.clip(n[None, :] - k[:, None], 0.0, 1.0)
     if taper == "none":
         return presence
-    u = (k[:, None] + 0.5) / np.maximum(n[None, :], 1e-9)
+    u = (k[:, None] + 0.5) / np.maximum(n[None, :], 1.0)  # taper never narrower than one zero
     match taper:
         case "gauss":
             shape = np.exp(-0.5 * (2.5 * u) ** 2)
@@ -136,24 +136,31 @@ def _zero_weights(k: FloatArray, n: FloatArray, taper: str) -> FloatArray:
 def salience_curve(
     x: FloatArray, n_zeros: FloatArray, gammas: FloatArray, taper: str = "gauss", chunk: int = 20000
 ) -> FloatArray:
-    r"""Normalised prime-spike curve.
+    r"""Normalised prime-spike curve, built from the zeros' oscillatory term only.
 
-    ``S(x) = (ψ'_N(x) − 1) · x / log x · π / I_w`` where ``I_w = Σ_k w_k · 2π / log(γ_k / 2π)``
-    approximates ``∫ w(γ) dγ``. By the Weil explicit formula the spike at ``n`` has height
-    ``≈ Λ(n)/n · I_w / π``, so ``S(n) ≈ Λ(n)/log n`` (1 at primes, 1/k at ``p^k``).
+    ``S(x) = −2 x^{-1/2} Σ_k w_k cos(γ_k ln x) · x / log x · π / I_w`` with
+    ``I_w = Σ_k w_k · 2π / log(γ_k / 2π)`` approximating ``∫ w(γ) dγ``. For fixed ``n`` and
+    growing bandwidth, Landau's formula gives a spike of height ``≈ Λ(n)/n · I_w / π`` at a
+    prime power, so ``S(n) → Λ(n)/log n`` (1 at primes, 1/k at ``p^k``).
+
+    The smooth main term (1) and trivial-zero term ``1/(x(x²−1))`` carry no spikes and are left
+    out: they would otherwise dominate as ``I_w → 0``. ``I_w`` is floored at one full zero, so
+    while the first zero fades in (``N < 1``) the curve fades in proportionally and ``N = 0``
+    gives exactly 0.
     """
     g = np.asarray(gammas, dtype=np.float64)
+    if g.size == 0:
+        return np.zeros_like(x, dtype=np.float64)
     k = np.arange(g.size, dtype=np.float64)
     spacing = 2 * np.pi / np.log(g / (2 * np.pi))
-    out = np.empty_like(x)
+    out = np.empty(x.shape, dtype=np.float64)
     for s in range(0, x.size, chunk):
         sl = slice(s, min(s + chunk, x.size))
         xc, nc = x[sl], n_zeros[sl]
         w = _zero_weights(k, nc, taper)
         osc = np.einsum("kj,kj->j", w, np.cos(np.outer(g, np.log(xc))))
-        dens_minus_1 = -2.0 * xc**-0.5 * osc - 1.0 / (xc * (xc * xc - 1.0))
-        i_w = np.maximum(spacing @ w, 1e-9)
-        out[sl] = dens_minus_1 * xc / np.log(xc) * np.pi / i_w
+        i_w = np.maximum(spacing @ w, spacing[0])
+        out[sl] = -2.0 * xc**-0.5 * osc * xc / np.log(xc) * np.pi / i_w
     return out
 
 

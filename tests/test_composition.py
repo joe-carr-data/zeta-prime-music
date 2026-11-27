@@ -66,3 +66,15 @@ def test_shipped_score_parses():
     cfg = load_config(ROOT / "compositions" / "critical_strip.toml")
     assert cfg.max_zeros == 500
     assert cfg.duration > 120
+
+
+def test_salience_is_bounded_while_first_zero_fades_in():
+    """Regression : N -> 0 used to give -3.9e10 at x = 1.2."""
+    g = load_zeros(5)
+    x = np.full(5, 1.2)
+    n = np.array([0.0, 1e-6, 0.1, 0.5, 1.0])
+    s = salience_curve(x, n, g)
+    assert s[0] == 0.0
+    assert np.all(np.isfinite(s)) and np.max(np.abs(s)) < 10
+    # fades in proportionally to presence while N < 1
+    np.testing.assert_allclose(s[1:4] / s[4], n[1:4], rtol=1e-9)
