@@ -123,3 +123,23 @@ def test_traced_part_depends_on_direction():
     xg = np.linspace(2, 10, 9)
     assert _traced(xg, 5.0, True).tolist() == [x <= 5 for x in xg]
     assert _traced(xg, 5.0, False).tolist() == [x >= 5 for x in xg]
+
+
+def test_hero_schedule_grows_geometrically_then_holds():
+    from zeta_music.animate import HeroSpec, hero_schedule
+
+    spec = HeroSpec(fps=10, grow=2.0, hold=1.0, fade=0.5, max_zeros=200)
+    n = hero_schedule(spec)
+    assert n.size == 20 + 15
+    assert n[0] == 1.0 and n[19] == pytest.approx(200.0) and np.all(n[20:] == 200.0)
+    assert np.all(np.diff(n[:20]) > 0)
+
+
+@needs_ffmpeg
+def test_render_hero_smoke(tmp_path):
+    from zeta_music.animate import HeroSpec, render_hero
+
+    gif = render_hero(
+        tmp_path / "h.gif", HeroSpec(width=320, height=160, fps=4, grow=1.0, hold=0.5, fade=0.5, max_zeros=20)
+    )
+    assert gif.exists() and gif.read_bytes()[:6] in (b"GIF89a", b"GIF87a")

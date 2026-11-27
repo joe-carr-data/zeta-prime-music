@@ -63,6 +63,14 @@ def _cmd_video(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_animate(args: argparse.Namespace) -> int:
+    from .animate import HeroSpec, render_hero
+
+    spec = HeroSpec(width=args.width, height=args.width // 2, fps=args.fps)
+    print(render_hero(Path(args.out), spec, Path(args.mp4) if args.mp4 else None))
+    return 0
+
+
 def _cmd_zeros(args: argparse.Namespace) -> int:
     from .zeros import load_zeros
 
@@ -109,6 +117,13 @@ def build_parser() -> argparse.ArgumentParser:
     v.add_argument("--start", type=float, default=0.0, help="clip start (s)")
     v.add_argument("--end", type=float, default=None, help="clip end (s)")
     v.set_defaults(func=_cmd_video)
+
+    an = sub.add_parser("animate", help="README hero animation: the primes appearing as zeros are added")
+    an.add_argument("-o", "--out", default="docs/media/hero.gif")
+    an.add_argument("--mp4", default=None, help="also save the full-quality MP4 here")
+    an.add_argument("--width", type=int, default=960)
+    an.add_argument("--fps", type=int, default=24)
+    an.set_defaults(func=_cmd_animate)
 
     z = sub.add_parser("zeros", help="print the first n nontrivial zeros")
     z.add_argument("n", type=int, nargs="?", default=10)

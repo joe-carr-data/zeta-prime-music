@@ -1,4 +1,6 @@
-# zeta-music — the music of the primes
+# Zeta Prime Music
+
+![Each zero of the Riemann zeta function is a wave; add 200 of them and the primes appear](docs/media/hero.gif)
 
 Compositions generated from the nontrivial zeros of the Riemann zeta function.
 
@@ -19,6 +21,7 @@ make proposals               # → output/proposals/A–E (.wav + .m4a)
 make video clips             # visualiser video + five vertical clips (needs ffmpeg)
 make web                     # interactive demo → output/web/hear-the-primes.html
 make explain                 # figure reproducing the video's argument
+make hero                    # README animation → docs/media/hero.gif (needs ffmpeg)
 make all                     # everything above from a clean clone, after lint + tests
 make test lint
 ```
