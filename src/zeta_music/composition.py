@@ -390,13 +390,23 @@ def _fades(n: int, sr: int, fade_in: float = 3.0, fade_out: float = 8.0) -> Floa
     return env
 
 
+def _audible(cfg: CompositionConfig, tl: Timeline, time: float) -> bool:
+    """A note sounds only if its section is not muted AND the (smoothed) gain envelope is up.
+
+    The envelope is zero-phase smoothed, so it starts rising slightly *before* an unmute; the
+    configured section gain gates that pre-ring away.
+    """
+    j = min(int(time * tl.rate), tl.t.size - 1)
+    return cfg.sections[int(tl.section[j])].pluck_gain > 0.02 and tl.pluck_gain[j] > 0.02
+
+
 def analyse(cfg: CompositionConfig) -> tuple[FloatArray, Timeline, FloatArray, list[Event]]:
     """Everything except audio: zeros, timeline, salience curve and the audible note events."""
     gammas = load_zeros(max(cfg.max_zeros, 1))
     tl = build_timeline(cfg)
     log.info("timeline: %.1fs, %d control frames, up to %d zeros", cfg.duration, tl.t.size, gammas.size)
     sal = salience_curve(tl.x, tl.n_zeros, gammas, cfg.taper)
-    events = [e for e in detect_events(tl, sal, cfg) if tl.pluck_gain[min(int(e.time * tl.rate), tl.t.size - 1)] > 0.02]
+    events = [e for e in detect_events(tl, sal, cfg) if _audible(cfg, tl, e.time)]
     log.info("events: %d", len(events))
     return gammas, tl, sal, events
 

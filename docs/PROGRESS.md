@@ -13,7 +13,6 @@ O5. Video: use the empty lower third in 9:16 (e.g. the zero 'chord' as bars at �
 O3. Interactive web demo: slider adds zeros, Web Audio plays the bar (static page, no backend).
 O4. LICENSE (MIT code) once the user decides on audio licence (CC BY 4.0 recommended for clips/stems).
 review (docs/reviews/review_review3_raw.log), fix first:
-V4. Muted section still triggers notes: event filter uses smoothed pluck_gain that rises before an unmute (3 events in a muted 1st s). Gate on the section's configured gain too.
 V1. Short clips → zero frames (int(duration*fps)). Validate fps/range before analysis; ceil frames; test sub-frame + non-integral counts.
 V5. ffmpeg early exit → BrokenPipeError escapes; cleanup skips wait()/plt.close. Popen context manager + outer finally → RuntimeError.
 V3. Decimal loop lengths: floor(u/loop) vs mod(u,loop) disagree at boundaries → wrap inside a segment. One shared cycle computation + test.
@@ -46,3 +45,4 @@ C5. Document fixed-n Landau limit; window in ordinate space; test far-end salien
 - 2026-11-27 tick 4: O1+O2 done: `zeta-music video` (matplotlib→ffmpeg pipe, 16:9/9:16/1:1, --start/--end) + `make video clips`. Full 16:9 video (3:32, 11 MB) and 5 vertical clips (36–60 s). analyse() split out of render(). 55 tests.
 - 2026-11-27 tick 5: fixed review C6: Timeline carries explicit `segment` ids (section starts + loop restarts); detection and video use them. Descending sweeps now work (regression test: 29→2 in order). Shipped piece's events identical. 56 tests.
 - 2026-11-27 tick 6: fixed review C10: notes normalised to unit peak (level = salience), plucks+bells share one gain, bell_db now relative (-4 dB). Measured in mix: primes -4.2 dBFS vs prime powers -7.5 dBFS onset (median, N>=21). All proposals, video and clips re-rendered. 57 tests.
+- 2026-11-27 tick 7: fixed review V4: events gated on the section's configured pluck_gain as well as the smoothed envelope (reproduced 2 leaked notes before the fix). Shipped scores unchanged (256 events each). 58 tests.

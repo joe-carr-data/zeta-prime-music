@@ -141,3 +141,20 @@ def test_note_level_follows_salience(tiny_config):
     pan0 = np.cos(np.pi / 4)
     assert np.max(np.abs(plucks)) == pytest.approx(1.0 * pan0, rel=2e-3)
     assert np.max(np.abs(bells)) == pytest.approx(0.5 * pan0, rel=2e-3)
+
+
+def test_muted_section_never_sounds():
+    """Regression : the smoothed gain rises before an unmute and leaked notes into a muted section."""
+    from zeta_music.composition import analyse
+    from zeta_music.config import CompositionConfig, Section
+
+    cfg = CompositionConfig(
+        title="mute", sample_rate=8000, control_rate=1000,
+        sections=[
+            Section("muted", 1.0, 1.5, 31.5, 50, 50, pluck_gain=0.0),
+            Section("open", 1.0, 1.5, 31.5, 50, 50),
+        ],
+    )  # fmt: skip
+    _, _, _, events = analyse(cfg)
+    assert events, "the unmuted bar must still sound"
+    assert all(e.time >= 1.0 for e in events)
