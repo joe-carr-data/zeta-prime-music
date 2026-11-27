@@ -58,7 +58,9 @@ def _cmd_video(args: argparse.Namespace) -> int:
     from .video import VideoSpec, render_video
 
     cfg = load_config(args.config)
-    spec = VideoSpec(aspect=args.aspect, fps=args.fps, start=args.start, end=args.end)
+    spec = VideoSpec(
+        aspect=args.aspect, fps=args.fps, start=args.start, end=args.end, caption=args.caption, end_card=args.end_card
+    )
     print(render_video(cfg, Path(args.audio), Path(args.out), spec))
     return 0
 
@@ -119,6 +121,8 @@ def build_parser() -> argparse.ArgumentParser:
     v.add_argument("--fps", type=int, default=30)
     v.add_argument("--start", type=float, default=0.0, help="clip start (s)")
     v.add_argument("--end", type=float, default=None, help="clip end (s)")
+    v.add_argument("--caption", default=None, help="hook text shown over the first 4 s")
+    v.add_argument("--end-card", action="store_true", help="title card with the site address over the last 2.5 s")
     v.set_defaults(func=_cmd_video)
 
     an = sub.add_parser("animate", help="README hero animation: the primes appearing as zeros are added")

@@ -40,6 +40,14 @@ class VideoSpec:
     end: float | None = None
     grid_points: int = 900
     crf: int = 20
+    caption: str | None = None  # hook shown over the first CAPTION_SECONDS of the clip
+    end_card: bool = False  # title card over the last END_CARD_SECONDS
+
+
+CAPTION_SECONDS = 4.0
+END_CARD_SECONDS = 2.5
+END_CARD_TITLE = "Zeta Prime Music"
+END_CARD_URL = "joe-carr-data.github.io/zeta-prime-music"
 
 
 def _window(cfg: CompositionConfig, sec_idx: int, x_now: float) -> tuple[float, float]:
@@ -95,6 +103,7 @@ def render_video(cfg: CompositionConfig, audio: Path, out: Path, spec: VideoSpec
     import matplotlib
 
     matplotlib.use("Agg")
+    import matplotlib.patches
     import matplotlib.pyplot as plt
 
     gammas, tl, _sal, events = analyse(cfg)
@@ -124,6 +133,18 @@ def render_video(cfg: CompositionConfig, audio: Path, out: Path, spec: VideoSpec
     else:
         fig.text(0.5, 0.06, formula + "   —   " + gloss, ha="center", color="#9aa0aa", fontsize=big * 0.45)
     labels: list = []
+    caption = fig.text(0.5, 0.085 if portrait else 0.115, spec.caption or "", ha="center", va="center", color=FG,
+                       fontsize=big * 0.62, weight="bold", wrap=True, alpha=0.0,
+                       bbox={"boxstyle": "round,pad=0.6", "fc": "#000000", "ec": "none", "alpha": 0.0})  # fmt: skip
+    card = fig.add_axes((0, 0, 1, 1), facecolor=BG)
+    card.set_axis_off()
+    card.set_zorder(10)  # above the page title, counter and formula
+    card.set_alpha(0.0)
+    card_bg = card.add_patch(matplotlib.patches.Rectangle((0, 0), 1, 1, transform=card.transAxes, color=BG, alpha=0.0))
+    card_title = card.text(0.5, 0.54, END_CARD_TITLE, ha="center", va="center", color=FG, fontsize=big * 1.25,
+                           weight="bold", alpha=0.0)  # fmt: skip
+    card_url = card.text(0.5, 0.45, END_CARD_URL, ha="center", va="center", color="#2dd4bf", fontsize=big * 0.55,
+                         alpha=0.0)  # fmt: skip
 
     out.parent.mkdir(parents=True, exist_ok=True)
     n_frames = frame_count(end - spec.start, spec.fps)
@@ -183,6 +204,16 @@ def render_video(cfg: CompositionConfig, audio: Path, out: Path, spec: VideoSpec
                             weight="bold" if e.kind == "prime" else "normal",
                         )
                     )
+                rel, left = t - spec.start, end - t
+                if spec.caption:  # fade in over 0.3 s, out over the last 0.5 s of its window
+                    a = float(np.clip(min(rel / 0.3, (CAPTION_SECONDS - rel) / 0.5), 0.0, 1.0))
+                    caption.set_alpha(a)
+                    caption.get_bbox_patch().set_alpha(0.55 * a)
+                if spec.end_card:
+                    a = float(np.clip((END_CARD_SECONDS - left) / 0.5, 0.0, 1.0))
+                    card_bg.set_alpha(0.92 * a)
+                    card_title.set_alpha(a)
+                    card_url.set_alpha(a)
                 fig.canvas.draw()
                 proc.stdin.write(fig.canvas.buffer_rgba().tobytes())
                 if f % (spec.fps * 10) == 0:

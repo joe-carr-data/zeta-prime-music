@@ -143,3 +143,12 @@ def test_render_hero_smoke(tmp_path):
         tmp_path / "h.gif", HeroSpec(width=320, height=160, fps=4, grow=1.0, hold=0.5, fade=0.5, max_zeros=20)
     )
     assert gif.exists() and gif.read_bytes()[:6] in (b"GIF89a", b"GIF87a")
+
+
+@needs_ffmpeg
+def test_caption_and_end_card_render(tiny_config, tiny_wav, tmp_path):
+    out = render_video(
+        tiny_config, tiny_wav, tmp_path / "c.mp4",
+        VideoSpec(aspect="9:16", fps=5, start=3.0, end=7.0, caption="Add the zeros one by one", end_card=True),
+    )  # fmt: skip
+    assert int({s["codec_type"]: s for s in _probe(out)["streams"]}["video"]["nb_read_frames"]) == 20
