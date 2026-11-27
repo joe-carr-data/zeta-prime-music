@@ -70,16 +70,22 @@ class Timeline:
     breath_gain: FloatArray
 
 
-def _section_curves(sec: Section, u: FloatArray) -> tuple[FloatArray, FloatArray]:
-    """x(u) and N(u) for local time u in [0, duration)."""
+def _section_curves(sec: Section, u: FloatArray) -> tuple[FloatArray, FloatArray, NDArray[np.int64]]:
+    """x(u), N(u) and the local bar index for local time u in [0, duration).
+
+    For looping sections the bar index and the phase come from ONE division, so they always agree
+    at bar boundaries (``mod`` and ``floor`` computed separately can disagree for decimal loops).
+    """
     if sec.loop:
-        phase = np.mod(u, sec.loop) / sec.loop
-        segment = np.floor(u / sec.loop).astype(int)
-        n_segments = int(np.ceil(sec.duration / sec.loop - 1e-9))
+        q = u / sec.loop
+        bar = np.floor(q).astype(np.int64)
+        phase = q - bar
+        step = bar  # zero steps advance once per bar
     else:
         phase = u / sec.duration
-        n_segments = len(sec.zeros_steps) if sec.zeros_steps else 1
-        segment = np.minimum((u / sec.duration * n_segments).astype(int), n_segments - 1)
+        n_steps = len(sec.zeros_steps) if sec.zeros_steps else 1
+        bar = np.zeros(u.size, dtype=np.int64)
+        step = np.minimum((phase * n_steps).astype(np.int64), n_steps - 1)
 
     if sec.sweep == "exp":
         x = sec.x_start * (sec.x_end / sec.x_start) ** phase
@@ -88,12 +94,12 @@ def _section_curves(sec: Section, u: FloatArray) -> tuple[FloatArray, FloatArray
 
     if sec.zeros_steps:
         steps = np.asarray(sec.zeros_steps, dtype=float)
-        n = steps[np.minimum(segment, steps.size - 1)]
+        n = steps[np.minimum(step, steps.size - 1)]
     else:
         frac = u / sec.duration
         a, b = float(sec.zeros_start), float(sec.zeros_end)
         n = a * (b / a) ** frac if a > 0 and b > 0 else a + (b - a) * frac
-    return x, n
+    return x, n, bar
 
 
 def build_timeline(cfg: CompositionConfig) -> Timeline:
@@ -102,8 +108,7 @@ def build_timeline(cfg: CompositionConfig) -> Timeline:
     seg_offset = 0
     for i, sec in enumerate(cfg.sections):
         u = np.arange(round(sec.duration * rate)) / rate
-        x, n = _section_curves(sec, u)
-        local = np.floor(u / sec.loop).astype(np.int64) if sec.loop else np.zeros(u.size, dtype=np.int64)
+        x, n, local = _section_curves(sec, u)
         parts["seg"].append(seg_offset + local)
         seg_offset += int(local.max(initial=0)) + 1
         parts["x"].append(x)

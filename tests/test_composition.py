@@ -158,3 +158,21 @@ def test_muted_section_never_sounds():
     _, _, _, events = analyse(cfg)
     assert events, "the unmuted bar must still sound"
     assert all(e.time >= 1.0 for e in events)
+
+
+@pytest.mark.parametrize("loop", [0.1, 0.3, 0.7, 1.1])
+def test_decimal_loops_wrap_exactly_at_segment_boundaries(loop):
+    """Regression : floor(u/loop) and mod(u, loop) disagreed, putting the wrap inside a bar."""
+    from zeta_music.config import CompositionConfig, Section
+
+    cfg = CompositionConfig(
+        title="dec", control_rate=1000,
+        sections=[Section("s", round(loop * 10, 6), 1.5, 31.5, 5, 5, loop=loop)],
+    )  # fmt: skip
+    tl = build_timeline(cfg)
+    wraps = np.flatnonzero(np.diff(tl.x) < 0) + 1
+    seg_changes = np.flatnonzero(np.diff(tl.segment) != 0) + 1
+    np.testing.assert_array_equal(wraps, seg_changes)
+    # within every bar x is monotonic
+    for a, b in zip([0, *seg_changes], [*seg_changes, tl.x.size], strict=True):
+        assert np.all(np.diff(tl.x[a:b]) > 0)

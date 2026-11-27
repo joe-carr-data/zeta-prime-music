@@ -13,7 +13,6 @@ O5. Video: use the empty lower third in 9:16 (e.g. the zero 'chord' as bars at �
 O3. Interactive web demo: slider adds zeros, Web Audio plays the bar (static page, no backend).
 O4. LICENSE (MIT code) once the user decides on audio licence (CC BY 4.0 recommended for clips/stems).
 review (docs/reviews/review_review3_raw.log), fix first:
-V3. Decimal loop lengths: floor(u/loop) vs mod(u,loop) disagree at boundaries → wrap inside a segment. One shared cycle computation + test.
 V2. Video for descending sweeps highlights unplayed side; sliding window direction.
 V6. Video curve cache: key on exact (n, lo, hi); validate clip before full analysis; memory-budget chunking.
 review findings (docs/reviews/review_2026-11-27_raw.log), fix in order:
@@ -45,3 +44,4 @@ C5. Document fixed-n Landau limit; window in ordinate space; test far-end salien
 - 2026-11-27 tick 6: fixed review C10: notes normalised to unit peak (level = salience), plucks+bells share one gain, bell_db now relative (-4 dB). Measured in mix: primes -4.2 dBFS vs prime powers -7.5 dBFS onset (median, N>=21). All proposals, video and clips re-rendered. 57 tests.
 - 2026-11-27 tick 7: fixed review V4: events gated on the section's configured pluck_gain as well as the smoothed envelope (reproduced 2 leaked notes before the fix). Shipped scores unchanged (256 events each). 58 tests.
 - 2026-11-27 tick 8: fixed review V1+V5 (same function): clip validated before analysis, fps>0, ceil frame count, output trimmed with -t; Popen context manager + stderr capture, BrokenPipe → RuntimeError with exit code/stderr, figure always closed. ffprobe-based tests (streams, frame counts 1/5/7, duration) + failing-encoder test. 66 tests. Existing clips unaffected (integral lengths).
+- 2026-11-27 tick 9: fixed review V3: loop phase, bar index and zero step now come from one division (q = u/loop); test over loops 0.1/0.3/0.7/1.1 (old code failed 2 of 4). Shipped scores (integer loops) unaffected. 70 tests. review of ticks 6–8 running.
