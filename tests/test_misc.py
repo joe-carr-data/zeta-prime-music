@@ -224,3 +224,20 @@ def test_pluck_decay_at_low_sample_rates(sr, freq):
 def test_oversampling_never_exceeds_internal_rate_cap(sr, freq):
     """Regression: 8 kHz / 2.5 kHz used to pick 64x (512 kHz) despite the 384 kHz cap."""
     assert sr * synth.oversampling_factor(freq, sr, 2.8) <= synth.MAX_INTERNAL_RATE
+
+
+def test_version_is_single_sourced_from_pyproject():
+    import tomllib
+
+    import zeta_music
+
+    from .conftest import ROOT
+
+    assert zeta_music.__version__ == tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"]
+
+
+def test_cli_version(capsys):
+    with pytest.raises(SystemExit) as exc:
+        main(["--version"])
+    assert exc.value.code == 0
+    assert "zeta-music" in capsys.readouterr().out

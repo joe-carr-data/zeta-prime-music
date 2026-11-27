@@ -81,7 +81,10 @@ def _cmd_zeros(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="zeta-music", description="The music of the primes, from the zeros of ζ(s).")
+    from . import __version__
+
     p.add_argument("-v", "--verbose", action="store_true")
+    p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     r = sub.add_parser("render", help="render a composition from a TOML score")

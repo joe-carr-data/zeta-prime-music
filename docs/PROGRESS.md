@@ -1,16 +1,16 @@
 # Status, backlog and development log
 
 ## Status
-- v0.1.0 (unreleased): maths core (zeros, explicit formula), composition engine, the score
+- v0.1.0: public at github.com/joe-carr-data/zeta-prime-music, site on GitHub Pages; MIT code, CC BY 4.0 media; maths core (zeros, explicit formula), composition engine, the score
   *Critical Strip* and proposals A–F, literal sonifications, MIDI/JSON/plots, visualiser video
   and clips, interactive web demo, CLI, 144 tests, CI.
 
 ## Open backlog (highest value first)
-1. **Release decisions:** which proposal is canonical (A or F); licence for code (MIT suggested)
-   and for audio (CC BY 4.0 suggested for clips/stems); then CONTRIBUTING.md, CHANGELOG.md,
-   a v0.1.0 tag and a single-source version number.
-2. **Clips:** burned-in hook caption ("Add the zeros of ζ one by one…") and an end card with the
-   repository / release name.
+1. **Release:** tag v0.1.0 and publish a GitHub release with the two audio tracks attached
+   (CHANGELOG, CONTRIBUTING, licences and single-source version are in place). Canonical version:
+   *Critical Strip* (A), with *Critical Strip (revised)* as the alternative.
+2. **Clips:** burned-in hook caption ("Add the zeros of ζ one by one…") and an end card with
+   "Zeta Prime Music" and the site address.
 3. **Optional polish:** per-zero tremolo in the demo drone; use the empty lower third of the 9:16
    video (the zero "chord" as bars at γ_k).
 4. **Musical ideas:** register in movement III by prime gap or by `k ln p` mod octave; splice the
@@ -52,3 +52,4 @@
   3.12/3.13 with ffmpeg and Node plus a wheel-install smoke test.
 - Proposal F (*Critical Strip (revised)*): shorter movement II, call-and-response movement IV,
   reversed movement V ending on 3 → 2.
+- Public-release housekeeping: LICENSE (MIT) and LICENSE-MEDIA.md (CC BY 4.0), CHANGELOG, CONTRIBUTING, version single-sourced from pyproject (`zeta-music --version`).
