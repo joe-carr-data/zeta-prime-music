@@ -52,6 +52,7 @@ class VideoSpec:
 
 
 CAPTION_SECONDS = 4.0
+PORTRAIT_WINDOW = 28.0  # narrower sliding window on vertical video: twin-prime labels stay apart
 CAPTION_CHARS = {True: 30, False: 72}  # characters per caption line: portrait, landscape
 END_CARD_SECONDS = 2.5
 END_CARD_TITLE = "Zeta Prime Music"
@@ -109,12 +110,28 @@ def wrap_caption(text: str, portrait: bool) -> str:
     return textwrap.fill(text, width=CAPTION_CHARS[portrait], break_long_words=False)
 
 
-def _window(cfg: CompositionConfig, sec_idx: int, x_now: float) -> tuple[float, float]:
-    """Visible x range: the whole section if short or looping, else a 40-wide window that leads
+LABEL_EM = 0.62 * 100 / 72  # px per pt of font size per character (bold digits at dpi 100), approx.
+LABEL_LIFT = 0.24  # data units a label moves up per row when it would touch its neighbour
+
+
+def label_rows(xs: list[float], widths: list[float], gap_frac: float = 0.15, max_rows: int = 2) -> list[int]:
+    """Row (0 = normal height, 1 = lifted, …) for each centred label so neighbours never touch:
+    going left to right, a label takes the lowest row whose previous label it clears."""
+    rows = [0] * len(xs)
+    right_edge = [-math.inf] * max_rows
+    for i in sorted(range(len(xs)), key=lambda k: xs[k]):
+        left = xs[i] - widths[i] * (0.5 + gap_frac)
+        row = next((r for r in range(max_rows) if left >= right_edge[r]), 0)
+        rows[i] = row
+        right_edge[row] = xs[i] + widths[i] * (0.5 + gap_frac)
+    return rows
+
+
+def _window(cfg: CompositionConfig, sec_idx: int, x_now: float, width: float = 40.0) -> tuple[float, float]:
+    """Visible x range: the whole section if short or looping, else a ``width``-wide window that leads
     in the direction of travel (85 % behind the playhead, 15 % ahead), clamped to the section."""
     sec = cfg.sections[sec_idx]
     lo, hi = sorted((sec.x_start, sec.x_end))
-    width = 40.0
     if sec.loop or hi - lo <= width:
         return lo, hi
     if sec.x_end >= sec.x_start:  # ascending: most of the window behind (left of) the playhead
@@ -234,7 +251,7 @@ def render_video(
                 sec_idx = int(tl.section[j])
                 x_now = float(tl.x[j])
                 n_now = float(tl.n_zeros[j])
-                lo, hi = _window(cfg, sec_idx, x_now)
+                lo, hi = _window(cfg, sec_idx, x_now, PORTRAIT_WINDOW if portrait else 40.0)
                 key = (n_now, lo, hi)  # exact inputs: identical bars share one curve
                 if key not in cache:
                     if len(cache) > 64:
@@ -260,12 +277,19 @@ def render_video(
                 same_bar: list[Event] = [
                     e for e in events if e.time <= t and int(seg[min(int(e.time * tl.rate), seg.size - 1)]) == seg[j]
                 ]
-                for e in same_bar[-40:]:
+                shown = same_bar[-40:]
+                styles = []
+                for e in shown:
                     age = t - e.time
-                    alpha = 1.0 if age < 0.15 else max(0.6, 1.0 - 0.2 * age)
                     txt = str(e.nearest) if e.kind != "ghost" else f"{e.x:.1f}"
-                    y = min(e.salience, 2.2) + 0.12
-                    size = (16 if portrait else 14) * (1.5 if age < 0.12 else 1.0)
+                    styles.append((age, txt, (16 if portrait else 14) * (1.5 if age < 0.12 else 1.0)))
+                units_per_px = (hi - lo) / (w * ax.get_position().width)
+                base = 16 if portrait else 14  # rows from the resting size: a fresh label's pop does not move them
+                widths = [len(txt) * base * LABEL_EM * units_per_px for _a, txt, _s in styles]
+                rows = label_rows([e.x for e in shown], widths)
+                for e, (age, txt, size), row in zip(shown, styles, rows, strict=True):
+                    alpha = 1.0 if age < 0.15 else max(0.6, 1.0 - 0.2 * age)
+                    y = min(e.salience, 2.2) + 0.12 + LABEL_LIFT * row
                     labels.append(
                         ax.text(
                             e.x,

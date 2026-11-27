@@ -90,6 +90,24 @@ def test_captions_wrap_inside_the_frame():
     assert wrap_caption(hook, portrait=False) == hook  # one line in landscape
 
 
+def test_portrait_window_is_narrower():
+    from zeta_music.config import CompositionConfig, Section
+    from zeta_music.video import PORTRAIT_WINDOW, _window
+
+    cfg = CompositionConfig(title="w", sections=[Section("up", 10.0, 30.0, 130.0, 50, 50, sweep="exp")])
+    lo, hi = _window(cfg, 0, 100.0, PORTRAIT_WINDOW)
+    assert hi - lo == PORTRAIT_WINDOW < 40.0 and lo < 100.0 < hi
+
+
+def test_label_rows_lift_touching_neighbours_only():
+    from zeta_music.video import label_rows
+
+    # 101 and 103 would touch (width 2.5 > gap 2); 97 and 113 are clear of everything
+    assert label_rows([97.0, 101.0, 103.0, 107.0, 109.0, 113.0], [2.5] * 6) == [0, 0, 1, 0, 1, 0]
+    assert label_rows([103.0, 101.0], [2.5, 2.5]) == [1, 0]  # by position, not by order given
+    assert label_rows([2.0, 3.0, 5.0], [0.5] * 3) == [0, 0, 0]
+
+
 @pytest.fixture
 def tiny_wav(tiny_config, tmp_path):
     import soundfile as sf
