@@ -12,6 +12,13 @@ O2b. Clips: burn-in hook caption ("Add the zeros of ζ one by one…") + end car
 O5. Video: use the empty lower third in 9:16 (e.g. the zero 'chord' as bars at γ_k).
 O3. Interactive web demo: slider adds zeros, Web Audio plays the bar (static page, no backend).
 O4. LICENSE (MIT code) once the user decides on audio licence (CC BY 4.0 recommended for clips/stems).
+review (docs/reviews/review_review3_raw.log), fix first:
+V4. Muted section still triggers notes: event filter uses smoothed pluck_gain that rises before an unmute (3 events in a muted 1st s). Gate on the section's configured gain too.
+V1. Short clips → zero frames (int(duration*fps)). Validate fps/range before analysis; ceil frames; test sub-frame + non-integral counts.
+V5. ffmpeg early exit → BrokenPipeError escapes; cleanup skips wait()/plt.close. Popen context manager + outer finally → RuntimeError.
+V3. Decimal loop lengths: floor(u/loop) vs mod(u,loop) disagree at boundaries → wrap inside a segment. One shared cycle computation + test.
+V2. Video for descending sweeps highlights unplayed side; sliding window direction.
+V6. Video curve cache: key on exact (n, lo, hi); validate clip before full analysis; memory-budget chunking.
 review findings (docs/reviews/review_2026-11-27_raw.log), fix in order:
 C3. Memory: 500 control envelopes 1.66 GB + 5 float64 stems. Normalise first, synthesise per-partial without retaining rows, mix sequentially.
 C9. Config validation (sweep literal, finite values, sr-dependent cutoffs).
