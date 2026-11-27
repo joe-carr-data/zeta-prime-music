@@ -9,7 +9,8 @@
 # the truncated explicit formula. The [produce] table decides how those notes are played
 # (instruments, tempo grid, arrangement, mix). Render with
 #
-#   uv run --extra produce zeta-music produce compositions/commercial/the_sound_of_the_primes.toml
+#   uv run --extra produce zeta-music produce compositions/commercial/the_sound_of_the_primes.toml \
+#       -o output/proposals/J2 --tuning just
 #
 # Tempo grid: the 8 s bar sweeps 30 integers (3.75 per second). At 112.5 BPM a sixteenth lasts
 # exactly 1/7.5 s, so every integer falls on an odd sixteenth and the 8 s cycle is exactly three

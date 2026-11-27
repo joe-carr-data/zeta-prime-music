@@ -26,7 +26,7 @@ Bernhard Riemann found that they are governed by a hidden set of numbers, the ze
 and that **each zero is a wave**. Play those waves together and wrong notes drift and wobble, then lock onto
 the primes one by one, until the whole number line is in tune.
 
-**Every note comes from the mathematics: which note, when and how loud. We chose only the instruments, the key, the tempo and the form.**
+**No note was placed by hand. The peaks of the mathematics decide which notes sound, when, and how strongly; we only designed the rules that turn them into sound (the instruments, key, tempo, form and mix) and then let the zeros play.**
 
 > [!NOTE]
 > A proof of the Riemann Hypothesis was announced in November 2026: Levent Alpöge released a
@@ -48,7 +48,7 @@ Each nontrivial zero ρ = ½ + iγ adds one oscillation x<sup>−1/2</sup> cos(�
 for the primes:
 
 ```
-ψ′(x) = 1 − 2x^(−1/2) Σ_γ cos(γ ln x) − 1/(x(x²−1))
+ψ′(x) = 1 − 2x^(−1/2) Σ_(γ>0) cos(γ ln x) − 1/(x(x²−1))    (zeros ρ = ½ + iγ on the critical line)
 ```
 
 Add enough of them and the sum spikes at 2, 3, 5, 7, 11… with smaller "overtones" at 4, 8, 9, 16 (the prime
@@ -77,16 +77,20 @@ zeros are added and spikes appear at the primes ([docs/VIDEO_ANALYSIS.md](docs/V
 
 ## Quick start
 
+Everything below rebuilds from a clean clone except the featured recording, which needs Native
+Instruments Kontakt libraries and saved instrument states (not in the repository); its score, MIDI and
+video still build from the repo.
+
 ```bash
 uv sync                      # Python ≥ 3.12
 make render                  # → output/critical_strip.{wav,mid,events.json,score.png}
-make proposals               # → output/proposals/A–E (.wav + .m4a)
+make proposals               # → output/proposals/A–F (.wav + .m4a)
 make video clips             # visualiser video + five vertical clips (needs ffmpeg)
 make web                     # interactive demo → output/web/hear-the-primes.html
 make explain                 # figure reproducing the video's argument
 make hero                    # README animation → docs/media/hero.gif (needs ffmpeg)
-make produce                 # radio edit → output/commercial (needs fluidsynth + a GM SoundFont)
-make all                     # everything above from a clean clone, after lint + tests
+make produce                 # SoundFont radio edit → output/commercial (needs fluidsynth + a GM SoundFont)
+make all                     # render, proposals, video, web, explain from a clean clone, after lint + tests
 make test lint
 ```
 

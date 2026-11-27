@@ -34,7 +34,7 @@ The plot is the (formal) derivative of von Mangoldt's explicit formula
   oscillations x^{ρ}; the ψ form is what produces clean spikes.
 * The video's statement "real part = amplitude" ⇒ x^{1/2}: the RH says every zero has the
   *same* amplitude growth, i.e. the "instruments" are all equally loud — the most "balanced"
-  orchestra possible (cf. Mazur & Stein's framing).
+  orchestra possible (cf. Mazur & Stein's treatment).
 
 ## Reproduction in this repo
 
