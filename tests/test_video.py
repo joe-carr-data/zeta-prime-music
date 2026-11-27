@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from zeta_music import video
-from zeta_music.video import VideoSpec, _window, frame_count, render_video
+from zeta_music.video import VideoSpec, _traced, _window, frame_count, render_video
 
 
 def test_window_loop_and_sliding(tiny_config):
@@ -100,3 +100,26 @@ def test_clip_audio_comes_from_the_requested_interval(tiny_config, tiny_wav, tmp
         n = min(e_clip.size, e_src.size)
         scores[start] = np.corrcoef(e_clip[:n], e_src[:n])[0, 1]
     assert max(scores, key=scores.get) == 3.0 and scores[3.0] > 0.9
+
+
+def test_sliding_window_follows_direction_and_stays_in_section():
+    """review V2: long sweeps slide with the direction of travel and never leave the section."""
+    from zeta_music.config import CompositionConfig, Section
+
+    cfg = CompositionConfig(
+        title="w", sections=[Section("up", 10.0, 2.0, 200.0, 50, 50), Section("down", 10.0, 200.0, 2.0, 50, 50)]
+    )
+    up_lo, up_hi = _window(cfg, 0, 100.0)
+    assert up_hi - up_lo == 40 and up_lo < 100 < up_hi and 100 - up_lo > up_hi - 100  # mostly behind (left)
+    dn_lo, dn_hi = _window(cfg, 1, 100.0)
+    assert dn_hi - dn_lo == 40 and dn_lo < 100 < dn_hi and dn_hi - 100 > 100 - dn_lo  # mostly behind (right)
+    for sec in (0, 1):
+        for x in (2.0, 3.0, 199.0, 200.0):
+            lo, hi = _window(cfg, sec, x)
+            assert lo >= 2.0 and hi <= 200.0 and lo <= x <= hi
+
+
+def test_traced_part_depends_on_direction():
+    xg = np.linspace(2, 10, 9)
+    assert _traced(xg, 5.0, True).tolist() == [x <= 5 for x in xg]
+    assert _traced(xg, 5.0, False).tolist() == [x >= 5 for x in xg]

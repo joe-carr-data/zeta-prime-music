@@ -43,12 +43,23 @@ class VideoSpec:
 
 
 def _window(cfg: CompositionConfig, sec_idx: int, x_now: float) -> tuple[float, float]:
+    """Visible x range: the whole section if short or looping, else a 40-wide window that leads
+    in the direction of travel (85 % behind the playhead, 15 % ahead), clamped to the section."""
     sec = cfg.sections[sec_idx]
     lo, hi = sorted((sec.x_start, sec.x_end))
-    if sec.loop or hi - lo <= 40:
+    width = 40.0
+    if sec.loop or hi - lo <= width:
         return lo, hi
-    width = 40.0  # sliding window for long sweeps
-    return max(lo, x_now - 0.85 * width), max(lo, x_now - 0.85 * width) + width
+    if sec.x_end >= sec.x_start:  # ascending: most of the window behind (left of) the playhead
+        start = min(max(lo, x_now - 0.85 * width), hi - width)
+    else:  # descending: most of the window behind (right of) the playhead
+        start = min(max(lo, x_now - 0.15 * width), hi - width)
+    return start, start + width
+
+
+def _traced(xg: np.ndarray, x_now: float, ascending: bool) -> np.ndarray:
+    """Mask of the part of the curve the playhead has already swept."""
+    return xg <= x_now if ascending else xg >= x_now
 
 
 def _ffmpeg_cmd(w: int, h: int, fps: int, audio: Path, start: float, dur: float, crf: int, out: Path) -> list[str]:
@@ -117,7 +128,7 @@ def render_video(cfg: CompositionConfig, audio: Path, out: Path, spec: VideoSpec
     out.parent.mkdir(parents=True, exist_ok=True)
     n_frames = frame_count(end - spec.start, spec.fps)
     cmd = _ffmpeg_cmd(w, h, spec.fps, audio, spec.start, end - spec.start, spec.crf, out)
-    cache: dict[tuple[int, float, float, float], tuple[np.ndarray, np.ndarray]] = {}
+    cache: dict[tuple[float, float, float], tuple[np.ndarray, np.ndarray]] = {}
     broken = False
     with tempfile.TemporaryFile() as err, subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=err) as proc:
         assert proc.stdin is not None
@@ -129,7 +140,7 @@ def render_video(cfg: CompositionConfig, audio: Path, out: Path, spec: VideoSpec
                 x_now = float(tl.x[j])
                 n_now = float(tl.n_zeros[j])
                 lo, hi = _window(cfg, sec_idx, x_now)
-                key = (int(seg[j]), round(n_now, 3), round(lo, 2), round(hi, 2))
+                key = (n_now, lo, hi)  # exact inputs: identical bars share one curve
                 if key not in cache:
                     if len(cache) > 64:
                         cache.clear()
@@ -139,7 +150,8 @@ def render_video(cfg: CompositionConfig, audio: Path, out: Path, spec: VideoSpec
                 yc = np.clip(yg, -1.2, 2.4)
                 ax.set_xlim(lo, hi)
                 dim_line.set_data(xg, yc)
-                done = xg <= x_now
+                sec = cfg.sections[sec_idx]
+                done = _traced(xg, x_now, sec.x_end >= sec.x_start)
                 live_line.set_data(xg[done], yc[done])
                 head.set_xdata([x_now, x_now])
                 subtitle.set_text(cfg.sections[sec_idx].name)
