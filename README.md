@@ -28,6 +28,7 @@ make video clips             # visualiser video + five vertical clips (needs ffm
 make web                     # interactive demo → output/web/hear-the-primes.html
 make explain                 # figure reproducing the video's argument
 make hero                    # README animation → docs/media/hero.gif (needs ffmpeg)
+make produce                 # radio edit → output/commercial (needs fluidsynth + a GM SoundFont)
 make all                     # everything above from a clean clone, after lint + tests
 make test lint
 ```
@@ -42,6 +43,8 @@ uv run zeta-music literal linear -n 200 -d 10 -o output/prime_clicks.wav
 uv run zeta-music explain -n 200 --xmax 30
 uv run zeta-music video compositions/critical_strip.toml --audio output/critical_strip.wav --aspect 9:16 --start 16 --end 64
 uv run zeta-music zeros 10
+uv run --extra produce zeta-music produce compositions/commercial/critical_strip_radio.toml --soundfont GeneralUser-GS.sf2
+uv run --extra produce zeta-music produce-preset --plugin /Library/Audio/Plug-Ins/VST3/X.vst3 --out x.state
 ```
 
 ## Layout
@@ -51,6 +54,7 @@ src/zeta_music/
   zeros.py        first 500 zeros bundled (mpmath), more computed + cached on demand
   explicit.py     ψ(x), ψ'(x) explicit formulas, prime powers, von Mangoldt, spectral tapers
   composition.py  timeline → salience curve → note events → drone/plucks/bells/breath → mix
+  produce.py      produced version: tempo map, just/tempered MIDI, SoundFont/plugin instruments, mix, master
   synth.py        Karplus–Strong, FM bell, convolution reverb, mastering
   midi.py         MIDI export with microtonal pitch bend
   literal.py      direct sonification of the sums

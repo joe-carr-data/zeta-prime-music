@@ -8,7 +8,7 @@ from dataclasses import MISSING, dataclass, field, fields
 from pathlib import Path
 from typing import Any, Literal
 
-__all__ = ["CompositionConfig", "MixConfig", "Section", "load_config"]
+__all__ = ["CompositionConfig", "MixConfig", "Section", "config_from_dict", "load_config"]
 
 Sweep = Literal["linear", "exp"]
 Taper = Literal["none", "hann", "gauss", "fejer"]
@@ -188,6 +188,13 @@ def load_config(path: str | Path) -> CompositionConfig:
         raw = tomllib.loads(path.read_text())
     except tomllib.TOMLDecodeError as exc:
         raise ValueError(f"{path}: invalid TOML: {exc}") from None
+    return config_from_dict(raw, str(path))
+
+
+def config_from_dict(raw: dict[str, Any], where: str) -> CompositionConfig:
+    """Build a config from already-parsed TOML data (``where`` prefixes every error message)."""
+    raw = dict(raw)
+    path = where
     raw_sections = raw.pop("sections", [])
     if not isinstance(raw_sections, list) or not raw_sections:
         raise ValueError(f"{path}: needs at least one [[sections]] entry")
