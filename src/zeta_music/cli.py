@@ -1,4 +1,5 @@
-"""Command-line interface: ``zeta-music {render,literal,explain,video,animate,produce,produce-preset,zeros}``."""
+"""Command-line interface: ``zeta-music {render,literal,explain,video,animate,produce,produce-preset,clear-cache,
+zeros}``."""
 
 from __future__ import annotations
 
@@ -74,8 +75,12 @@ def _cmd_animate(args: argparse.Namespace) -> int:
 
 
 def _cmd_produce(args: argparse.Namespace) -> int:
-    from .produce import produce
+    from .produce import clear_cache, produce
 
+    if args.jobs is not None and args.jobs < 1:
+        raise ValueError("--jobs must be >= 1")
+    if args.clear_cache:
+        print(f"cleared {clear_cache(Path(args.cache_dir))} files from {args.cache_dir}")
     t0 = time.perf_counter()
     tunings = ("just", "tempered") if args.tuning == "both" else (args.tuning,)
     meta = produce(
@@ -86,14 +91,27 @@ def _cmd_produce(args: argparse.Namespace) -> int:
         audio=not args.midi_only,
         name=args.name,
         stem_format=args.stem_format,
+        cache_dir=None if args.no_cache else Path(args.cache_dir),
+        jobs=args.jobs,
     )
     print(f"produced '{meta['title']}' in {time.perf_counter() - t0:.1f}s; notes: {meta['notes']}")
     for tuning, rep in meta.get("reports", {}).items():
         m = rep["master"]
         print(f"  {tuning:9s} {m['integrated_lufs']} LUFS integrated, {m['true_peak_dbtp']} dBTP")
+    if "render" in meta:
+        r = meta["render"]
+        done, hit = ", ".join(r["rendered"]) or "none", ", ".join(r["from_cache"]) or "none"
+        print(f"  voices rendered: {done}; from cache: {hit}")
     for kind, p in meta["paths"].items():
         if not kind.startswith(("stem_", "midi_just_")):
             print(f"  {kind:24s} {p}")
+    return 0
+
+
+def _cmd_clear_cache(args: argparse.Namespace) -> int:
+    from .produce import clear_cache
+
+    print(f"cleared {clear_cache(Path(args.cache_dir))} files from {args.cache_dir}")
     return 0
 
 
@@ -172,7 +190,25 @@ def build_parser() -> argparse.ArgumentParser:
     pr.add_argument("--soundfont", help="SoundFont for instrument = 'sf2' voices (else $ZETA_SOUNDFONT or the score's)")
     pr.add_argument("--midi-only", action="store_true", help="write the MIDI files and event list only")
     pr.add_argument("--stem-format", choices=["flac", "wav"], default="flac", help="24-bit stems (default flac)")
+    pr.add_argument(
+        "--cache-dir",
+        default="output/cache",
+        help="cache of each voice's raw instrument audio, reused while its notes and instrument are unchanged",
+    )
+    pr.add_argument("--no-cache", action="store_true", help="render every voice afresh and keep nothing")
+    pr.add_argument("--clear-cache", action="store_true", help="empty the cache directory before rendering")
+    pr.add_argument(
+        "-j",
+        "--jobs",
+        type=int,
+        default=None,
+        help="plugin voices rendered in parallel (default: min(voices, CPUs/2, 4))",
+    )
     pr.set_defaults(func=_cmd_produce)
+
+    cc = sub.add_parser("clear-cache", help="empty the produce render cache")
+    cc.add_argument("--cache-dir", default="output/cache")
+    cc.set_defaults(func=_cmd_clear_cache)
 
     pp = sub.add_parser("produce-preset", help="open an AU/VST3 plugin's editor, then save its state for a score")
     pp.add_argument("--plugin", required=True, help="path to the .vst3 or .component")
