@@ -155,7 +155,7 @@ def _zero_weights(k: FloatArray, n: FloatArray, taper: str) -> FloatArray:
 
 
 def salience_curve(
-    x: FloatArray, n_zeros: FloatArray, gammas: FloatArray, taper: str = "gauss", chunk: int = 20000
+    x: FloatArray, n_zeros: FloatArray, gammas: FloatArray, taper: str = "gauss", chunk: int | None = None
 ) -> FloatArray:
     r"""Normalised prime-spike curve, built from the zeros' oscillatory term only.
 
@@ -173,6 +173,8 @@ def salience_curve(
     if g.size == 0:
         return np.zeros_like(x, dtype=np.float64)
     k = np.arange(g.size, dtype=np.float64)
+    if chunk is None:  # ~16 MB per (zeros x chunk) float64 temporary, whatever the zero count
+        chunk = max(256, (16 << 20) // (8 * g.size))
     spacing = 2 * np.pi / np.log(g / (2 * np.pi))
     # floor = bandwidth of exactly one fully present (tapered) zero, so N=1 keeps full scale
     i_w_one = float(spacing[0] * _zero_weights(k[:1], np.ones(1), taper)[0, 0])
@@ -296,42 +298,47 @@ def _upsample(ctrl: FloatArray, rate: int, n_audio: int, sr: int) -> FloatArray:
 
 
 def _render_drone(cfg: CompositionConfig, tl: Timeline, gammas: FloatArray, n_audio: int) -> FloatArray:
+    """Additive drone, one sine per zero. Two passes keep memory flat in the number of zeros:
+    pass 1 computes the loudness normalisation; pass 2 rebuilds each partial's envelope on the
+    fly, synthesises it over its active span only, and discards it."""
     sr = cfg.sample_rate
     out = np.zeros((n_audio, 2))
-    t = np.arange(n_audio, dtype=np.float64) / sr
     rng = np.random.default_rng(cfg.seed + 1)
     log_x = np.log(tl.x)
     n_smooth = synth.smooth(tl.n_zeros, tl.rate, 1.5)
+    tc = np.arange(tl.t.size) / tl.rate
+
+    def presence_of(k: int) -> FloatArray:
+        return np.clip(n_smooth - k, 0.0, 1.0)
+
     amps_sq = np.zeros(tl.t.size)
-    rows: list[tuple[float, FloatArray, float]] = []
+    partials: list[tuple[int, float, float, float]] = []  # (k, freq, weight, pan) — scalars only
     for k, g in enumerate(gammas):
         f = cfg.drone_base_hz * (g / gammas[0]) ** cfg.drone_exponent
         if f > cfg.drone_max_hz:
             break
-        presence = np.clip(n_smooth - k, 0.0, 1.0)
+        presence = presence_of(k)
         if not presence.any():
             continue
         weight = abs(1.0 / complex(0.5, g)) / abs(1.0 / complex(0.5, gammas[0]))
-        trem = 1.0 - cfg.drone_tremolo + cfg.drone_tremolo * 0.5 * (1.0 + np.cos(g * log_x))
-        trem = synth.smooth(trem, tl.rate, 120.0)
-        amp = presence * weight * trem
         amps_sq += (presence * weight) ** 2
-        rows.append((f, amp, float(rng.uniform(-0.7, 0.7))))
+        partials.append((k, f, weight, float(rng.uniform(-0.7, 0.7))))
     # normalise so adding zeros thickens the chord without a loudness explosion
     norm = 1.0 / np.sqrt(np.maximum(amps_sq, 1.0))
     norm = synth.smooth(norm, tl.rate, 0.5) * tl.drone_gain
-    for f, amp, pan in rows:
+    for k, f, weight, pan in partials:
         phase0 = rng.uniform(0, 2 * np.pi)  # drawn unconditionally: keeps output seed-stable
-        ctrl = amp * norm
+        g = gammas[k]
+        trem = 1.0 - cfg.drone_tremolo + cfg.drone_tremolo * 0.5 * (1.0 + np.cos(g * log_x))
+        ctrl = presence_of(k) * weight * synth.smooth(trem, tl.rate, 120.0) * norm
         active = np.flatnonzero(ctrl > 1e-7)
         if active.size == 0:
             continue
         # synthesise only the span where this zero is switched on
         a = max(int((active[0] - 1) / tl.rate * sr), 0)
         b = min(int((active[-1] + 1) / tl.rate * sr) + 1, n_audio)
-        ts = t[a:b]
-        env = np.interp(ts, np.arange(ctrl.size) / tl.rate, ctrl)
-        tone = env * np.sin(2 * np.pi * f * ts + phase0)
+        ts = np.arange(a, b, dtype=np.float64) / sr
+        tone = np.interp(ts, tc, ctrl) * np.sin(2 * np.pi * f * ts + phase0)
         theta = (pan + 1.0) * np.pi / 4.0
         out[a:b, 0] += tone * np.cos(theta)
         out[a:b, 1] += tone * np.sin(theta)
@@ -439,21 +446,22 @@ def render(cfg: CompositionConfig) -> RenderResult:
     sal_pad = np.concatenate([sal, np.zeros(tl_pad.t.size - sal.size)])
 
     m = cfg.mix
-    drone = _render_drone(cfg, tl_pad, gammas, n_audio)
+    # Stems are rendered and summed one at a time (in place) so at most two full-length
+    # stereo buffers are alive at once.
+    mix = np.zeros((n_audio, 2))
+
+    def add_normalised(stem: FloatArray, db: float) -> None:
+        peak = float(np.max(np.abs(stem)))
+        if peak > 0 and np.isfinite(db):
+            stem *= synth.db_to_amp(db) / peak
+            mix[:] += stem
+
+    add_normalised(_render_drone(cfg, tl_pad, gammas, n_audio), m.drone_db)
     plucks, bells = _render_notes(cfg, tl_pad, events, n_audio)
-    breath = _render_breath(cfg, tl_pad, sal_pad, n_audio)
-    pole = _render_pole(cfg, n_audio)
-
-    def norm(a: FloatArray) -> FloatArray:
-        peak = float(np.max(np.abs(a)))
-        return a / peak if peak > 0 else a
-
-    mix = (
-        synth.db_to_amp(m.drone_db) * norm(drone)
-        + mix_notes(plucks, bells, m.pluck_db, m.bell_db)
-        + synth.db_to_amp(m.breath_db) * norm(breath)
-        + synth.db_to_amp(m.pole_db) * norm(pole)
-    )
+    mix[:] += mix_notes(plucks, bells, m.pluck_db, m.bell_db)
+    del plucks, bells
+    add_normalised(_render_breath(cfg, tl_pad, sal_pad, n_audio), m.breath_db)
+    add_normalised(_render_pole(cfg, n_audio), m.pole_db)
     mix *= _fades(n_audio, sr)[:, None]
     mix = synth.reverb(mix, sr, np.random.default_rng(cfg.seed + 4), t60=m.reverb_t60, mix=m.reverb_mix)
     mix = synth.master(mix, sr, peak_db=m.peak_db)

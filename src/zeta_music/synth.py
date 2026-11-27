@@ -128,8 +128,13 @@ def reverb(
     b, a = signal.butter(1, min(damping_hz, 0.45 * sr) / (sr / 2))
     ir = np.stack([signal.lfilter(b, a, rng.standard_normal(n_ir)) * env for _ in range(2)], axis=1)
     ir /= np.sqrt(np.sum(ir**2, axis=0, keepdims=True))
-    wet = np.stack([signal.fftconvolve(stereo[:, c], ir[:, c])[: stereo.shape[0]] for c in range(2)], axis=1)
-    return (1.0 - mix) * stereo + mix * wet
+    out = np.array(stereo, dtype=np.float64, copy=True)
+    for c in range(2):  # one channel at a time, blended in place: no full-length stereo temporaries
+        wet = signal.fftconvolve(out[:, c], ir[:, c])[: out.shape[0]]
+        out[:, c] *= 1.0 - mix
+        out[:, c] += mix * wet
+        del wet
+    return out
 
 
 def master(stereo: Audio, sr: int, peak_db: float = -1.0, drive: float = 1.2) -> Audio:

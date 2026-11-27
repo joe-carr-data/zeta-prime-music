@@ -16,7 +16,6 @@ review (docs/reviews/review_review3_raw.log), fix first:
 V2. Video for descending sweeps highlights unplayed side; sliding window direction.
 V6. Video curve cache: key on exact (n, lo, hi); validate clip before full analysis; memory-budget chunking.
 review findings (docs/reviews/review_2026-11-27_raw.log), fix in order:
-C3. Memory: 500 control envelopes 1.66 GB + 5 float64 stems. Normalise first, synthesise per-partial without retaining rows, mix sequentially.
 C7. KS decay calibration at high pitch (loop filter magnitude at f0).
 C8. MIDI channel allocation by release tick.
 C5. Document fixed-n Landau limit; window in ordinate space; test far-end salience (S(251)=0.71).
@@ -46,3 +45,4 @@ C5. Document fixed-n Landau limit; window in ordinate space; test far-end salien
 - 2026-11-27 tick 9: fixed review V3: loop phase, bar index and zero step now come from one division (q = u/loop); test over loops 0.1/0.3/0.7/1.1 (old code failed 2 of 4). Shipped scores (integer loops) unaffected. 70 tests. review of ticks 6–8 running.
 - 2026-11-27 tick 9b: acted on review (docs/reviews/review_review4_raw.log): video keeps partial last frame (no output -t; 1.201 s@5fps → 7 frames) and µs timestamp precision; notes mixed without stem normalisation via mix_notes() (−inf mutes cleanly, bell_db honoured); mute = configured gain 0 only (quiet sections keep notes); mix-stage tests. Balance kept (bell −4 dB, review agreed). Mix ~1.5 dB quieter, same shape; prime/power gap 3.7 dB. All media re-rendered. 74 tests.
 - 2026-11-27 tick 10: fixed review C9: full score validation at load time (sweep/taper literals, finite numbers, non-negative zero counts/steps, loop>0, gains>=0, sample_rate>=8000, base/max freqs vs Nyquist, mix ranges, -inf mutes allowed, missing keys, invalid TOML); every error names its TOML location e.g. `sections[2] ('III. Further out'): sweep must be ...`. 13 new tests (87). Shipped scores validate; no audio change.
+- 2026-11-27 tick 11: fixed review C3: two-pass drone (no retained envelopes; memory flat in #zeros), stems summed in place one at a time, salience chunk sized to ~16 MB/temporary, reverb blended per channel in place (oaconvolve tried: worse, reverted). Peak RSS 2.38 GB → 1.49 GB (−37%), output identical within 1 LSB (24-bit). Remaining peak = reverb FFT + master filtfilt on the full 208 s; fine for now.
