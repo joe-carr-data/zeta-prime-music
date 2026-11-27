@@ -1,3 +1,5 @@
+import itertools
+
 import numpy as np
 import pytest
 
@@ -150,3 +152,33 @@ def test_degenerate_reverb_is_dry_not_nan():
     x = np.random.default_rng(0).standard_normal((8000, 2))
     y = synth.reverb(x, 8000, np.random.default_rng(1), t60=1e-5, mix=0.5)
     assert np.all(np.isfinite(y))
+
+
+def _ev(t, freq=220.0, kind="prime"):
+    from zeta_music.composition import Event
+
+    return Event(t, 5.0, 1.0, 5, kind, 10.0, freq, 0.0)
+
+
+def test_midi_channels_never_shared_while_sounding():
+    """review C8: round-robin reused channels with pending note-offs (retuned / cut notes)."""
+    from zeta_music.midi import CHANNELS, allocate_channels
+
+    events = [_ev(0.05 * i, 200.0 + i) for i in range(40)]  # 40 overlapping 1.5 s notes
+    notes = allocate_channels(events)
+    assert 9 not in {n[0] for n in notes}  # drums channel untouched
+    by_ch: dict[int, list] = {}
+    for ch, on, off, *_ in notes:
+        by_ch.setdefault(ch, []).append((on, off))
+    for spans in by_ch.values():
+        spans.sort()
+        for (_, off_a), (on_b, _) in itertools.pairwise(spans):
+            assert off_a <= on_b  # the earlier note is released before the channel is reused
+    assert len(by_ch) == len(CHANNELS)
+
+
+def test_midi_sparse_notes_keep_full_length():
+    from zeta_music.midi import PPQ, allocate_channels
+
+    notes = allocate_channels([_ev(0.0), _ev(2.0), _ev(4.0, kind="ghost")])
+    assert [n[2] - n[1] for n in notes] == [int(1.5 * PPQ), int(1.5 * PPQ), int(0.4 * PPQ)]

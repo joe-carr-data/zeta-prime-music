@@ -16,7 +16,6 @@ review (docs/reviews/review_review3_raw.log), fix first:
 V2. Video for descending sweeps highlights unplayed side; sliding window direction.
 V6. Video curve cache: key on exact (n, lo, hi); validate clip before full analysis; memory-budget chunking.
 review findings (docs/reviews/review_2026-11-27_raw.log), fix in order:
-C8. MIDI channel allocation by release tick.
 C5. Document fixed-n Landau limit; window in ordinate space; test far-end salience (S(251)=0.71).
 2. Perceptual check of the render: spectral/loudness analysis per movement; check drone is not
    harsh at high partials (consider spectral tilt / lower `drone_max_hz`).
@@ -48,3 +47,4 @@ C5. Document fixed-n Landau limit; window in ordinate space; test far-end salien
 - 2026-11-27 tick 12: fixed review C7: KS loop gain divides out |H(w0)|; notes whose required gain would exceed 0.9999 are synthesised at 2/4/8x and decimated (resample_poly). Measured t60 now 2.50 s at 98–1568 Hz (was 0.33 s at 1568 Hz), tuning 0.0 cents; decay + tuning tests to 2093 Hz. All media re-rendered (movement III high notes now ring). 94 tests.
 - 2026-11-27 tick 12b: acted on review (docs/reviews/review_review5_raw.log): quiet sections (gain 0.01) keep notes; degenerate reverb returns dry instead of NaN + reverb_t60>=0.05; frequency validation relaxed (fundamentals < 0.45 sr; partials/notes above are dropped at render with a warning — 8 kHz scores playable); sections/loops must span >= 2 control frames; seed validated; mix_notes accumulates in place (peak RSS 1.49 → 1.37 GB); chunk floor 16; video test verifies clip audio comes from the requested interval. Shipped audio unchanged. 101 tests.
 - 2026-11-27 tick 13: O3 done: interactive demo 'Hear the Primes' (web/hear-the-primes.src.html → scripts/build_web.py → output/web/, `make web`), published privately at (private link) Slider 1–200 zeros, live graph-paper plot with labelled peaks, Play bar (drone + KS plucks + FM bells via Web Audio), Build-up through Fibonacci counts. JS maths verified against Python (identical peaks at N=1/13/200). 102 tests.
+- 2026-11-27 tick 14: fixed review C8: MIDI notes get a channel free the longest (by release tick); with all 15 busy the soonest-ending voice is stolen and its note-off pulled to the new onset — no shared bends, no stale note-offs. Tests: 40 overlapping notes never share a sounding channel; sparse notes keep full length. 104 tests. review (pluck oversampling + web demo) running.
