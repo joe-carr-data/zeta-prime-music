@@ -291,6 +291,7 @@ class RenderResult:
     events: list[Event]
     timeline: Timeline
     salience: FloatArray
+    stems: dict[str, FloatArray] | None = None  # dry voices at mix balance (render(..., stems=True))
 
     def stats(self) -> dict[str, int]:
         kinds = [e.kind for e in self.events]
@@ -459,8 +460,16 @@ def analyse(cfg: CompositionConfig) -> tuple[FloatArray, Timeline, FloatArray, l
     return gammas, tl, sal, events
 
 
-def render(cfg: CompositionConfig) -> RenderResult:
-    """Render the full piece described by ``cfg`` (deterministic for a given seed)."""
+STEM_NAMES = ("drone", "plucks", "bells", "breath", "pole")
+
+
+def render(cfg: CompositionConfig, stems: bool = False) -> RenderResult:
+    """Render the full piece described by ``cfg`` (deterministic for a given seed).
+
+    With ``stems=True`` the result also carries the five voices as dry stereo stems (before
+    reverb and mastering), at the same relative balance as the mix and sharing one gain, so that
+    summing them in a DAW reproduces the dry mix. The main mix is identical either way.
+    """
     sr = cfg.sample_rate
     gammas, tl, sal, events = analyse(cfg)
 
@@ -474,22 +483,38 @@ def render(cfg: CompositionConfig) -> RenderResult:
     # stereo buffers are alive at once.
     mix = np.zeros((n_audio, 2))
 
-    def add_normalised(stem: FloatArray, db: float) -> None:
+    kept: dict[str, FloatArray] = {}
+
+    def add_normalised(name: str, stem: FloatArray, db: float) -> None:
         peak = float(np.max(np.abs(stem)))
         if peak > 0 and np.isfinite(db):
             stem *= synth.db_to_amp(db) / peak
             mix[:] += stem
+            if stems:
+                kept[name] = stem
+        elif stems:
+            kept[name] = np.zeros_like(stem)
 
-    add_normalised(_render_drone(cfg, tl_pad, gammas, n_audio), m.drone_db)
+    add_normalised("drone", _render_drone(cfg, tl_pad, gammas, n_audio), m.drone_db)
     plucks, bells = _render_notes(cfg, tl_pad, events, n_audio)
+    if stems:
+        for name, voice, db in (("plucks", plucks, m.pluck_db), ("bells", bells, m.bell_db)):
+            kept[name] = voice * synth.db_to_amp(db) if np.isfinite(db) else np.zeros_like(voice)
     mix_notes(plucks, bells, m.pluck_db, m.bell_db, out=mix)
     del plucks, bells
-    add_normalised(_render_breath(cfg, tl_pad, sal_pad, n_audio), m.breath_db)
-    add_normalised(_render_pole(cfg, n_audio), m.pole_db)
-    mix *= _fades(n_audio, sr)[:, None]
+    add_normalised("breath", _render_breath(cfg, tl_pad, sal_pad, n_audio), m.breath_db)
+    add_normalised("pole", _render_pole(cfg, n_audio), m.pole_db)
+    fades = _fades(n_audio, sr)[:, None]
+    out_stems: dict[str, FloatArray] | None = None
+    if stems:  # one shared gain: the dry sum peaks at peak_db, balance untouched
+        dry_peak = float(np.max(np.abs(mix * fades))) or 1.0
+        gain = synth.db_to_amp(m.peak_db) / dry_peak
+        out_stems = {name: kept[name] * fades * gain for name in STEM_NAMES}
+        kept.clear()
+    mix *= fades
     mix = synth.reverb(mix, sr, np.random.default_rng(cfg.seed + 4), t60=m.reverb_t60, mix=m.reverb_mix)
     mix = synth.master(mix, sr, peak_db=m.peak_db)
-    return RenderResult(mix, sr, events, tl, sal)
+    return RenderResult(mix, sr, events, tl, sal, out_stems)
 
 
 def _pad_timeline(tl: Timeline, n: int) -> Timeline:
@@ -523,6 +548,12 @@ def write_outputs(result: RenderResult, cfg: CompositionConfig, out_dir: Path, s
         "midi": out_dir / f"{stem}.mid",
     }
     sf.write(paths["wav"], result.audio, result.sample_rate, subtype="PCM_24")
+    if result.stems:
+        stem_dir = out_dir / f"{stem}_stems"
+        stem_dir.mkdir(exist_ok=True)
+        for name, audio in result.stems.items():
+            paths[f"stem_{name}"] = stem_dir / f"{stem}_{name}.wav"
+            sf.write(paths[f"stem_{name}"], audio, result.sample_rate, subtype="PCM_24")
     meta = {
         "title": cfg.title,
         "duration_s": result.audio.shape[0] / result.sample_rate,

@@ -13,7 +13,7 @@
    video (the zero "chord" as bars at γ_k).
 3. **Musical ideas:** register in movement III by prime gap or by `k ln p` mod octave; splice the
    literal "chord of the zeros" in as an interlude; Dirichlet L-function voices (primes ≡ 1 vs 3
-   mod 4, Chebyshev's bias) as two stereo instruments; stem export for mixing; loudness
+   mod 4, Chebyshev's bias) as two stereo instruments; loudness
    normalisation to −14 LUFS for streaming; findings from the research brief
    (`docs/RESEARCH_BRIEF.md`) once a report exists in `docs/research/`.
 
@@ -53,3 +53,4 @@
 - Public-release housekeeping: LICENSE (MIT) and LICENSE-MEDIA.md (CC BY 4.0), CHANGELOG, CONTRIBUTING, version single-sourced from pyproject (`zeta-music --version`).
 - Clips: `zeta-music video --caption … --end-card` (hook text over the first 4 s, title card with the site address over the last 2.5 s); `make clips` captions all five.
 - Site and docs review fixes: instrument fits phone screens; table headings, meta text and legend meet 4.5:1 contrast; hero animation is a pausable video that respects reduced motion; movement timelines stack on phones; bell levels stated relative to a prime (−10 / −13.5 / −16 dB); register rule and first-bar pitches corrected; revised track duration 3:12; absolute share image; captions are literal text and never cover the axis labels; hatchling ≥ 1.26 for licence metadata.
+- Stem export: `zeta-music render --stems` writes five dry stereo stems (drone, plucks, bells, breath, pole) at mix balance with one shared gain, summing to the dry mix; the main mix is unchanged. Groundwork for a produced version with sampled or live instruments.

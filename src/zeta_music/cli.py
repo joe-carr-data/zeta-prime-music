@@ -17,7 +17,7 @@ def _cmd_render(args: argparse.Namespace) -> int:
 
     cfg = load_config(args.config)
     t0 = time.perf_counter()
-    result = render(cfg)
+    result = render(cfg, stems=args.stems)
     stem = args.name or Path(args.config).stem
     paths = write_outputs(result, cfg, Path(args.out), stem)
     if not args.no_plot:
@@ -94,6 +94,7 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("-o", "--out", default="output")
     r.add_argument("--name", help="output file stem (default: config stem)")
     r.add_argument("--no-plot", action="store_true")
+    r.add_argument("--stems", action="store_true", help="also write dry stems (drone, plucks, bells, breath, pole)")
     r.set_defaults(func=_cmd_render)
 
     lit = sub.add_parser("literal", help="direct sonification of the explicit-formula sum")

@@ -228,3 +228,15 @@ def test_salience_far_field_matches_documented_values(lo, hi, median_range):
     x = np.array([p for p in primes_upto(hi) if p >= lo], dtype=float)
     s = salience_curve(x, np.full(x.size, 500.0), load_zeros(500))
     assert median_range[0] <= np.median(s) <= median_range[1]
+
+
+def test_stems_sum_to_the_dry_mix_and_leave_the_mix_unchanged(tiny_config):
+    plain = render(tiny_config)
+    with_stems = render(tiny_config, stems=True)
+    np.testing.assert_array_equal(plain.audio, with_stems.audio)  # stems never change the mix
+    st = with_stems.stems
+    assert set(st) == {"drone", "plucks", "bells", "breath", "pole"}
+    total = sum(st.values())
+    assert np.max(np.abs(total)) == pytest.approx(10 ** (tiny_config.mix.peak_db / 20), rel=1e-9)
+    assert all(a.shape == plain.audio.shape for a in st.values())
+    assert np.max(np.abs(st["plucks"])) > 0 and np.max(np.abs(st["drone"])) > 0
