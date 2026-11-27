@@ -13,8 +13,6 @@ O5. Video: use the empty lower third in 9:16 (e.g. the zero 'chord' as bars at �
 O3. Interactive web demo: slider adds zeros, Web Audio plays the bar (static page, no backend).
 O4. LICENSE (MIT code) once the user decides on audio licence (CC BY 4.0 recommended for clips/stems).
 review (docs/reviews/review_review3_raw.log), fix first:
-V1. Short clips → zero frames (int(duration*fps)). Validate fps/range before analysis; ceil frames; test sub-frame + non-integral counts.
-V5. ffmpeg early exit → BrokenPipeError escapes; cleanup skips wait()/plt.close. Popen context manager + outer finally → RuntimeError.
 V3. Decimal loop lengths: floor(u/loop) vs mod(u,loop) disagree at boundaries → wrap inside a segment. One shared cycle computation + test.
 V2. Video for descending sweeps highlights unplayed side; sliding window direction.
 V6. Video curve cache: key on exact (n, lo, hi); validate clip before full analysis; memory-budget chunking.
@@ -46,3 +44,4 @@ C5. Document fixed-n Landau limit; window in ordinate space; test far-end salien
 - 2026-11-27 tick 5: fixed review C6: Timeline carries explicit `segment` ids (section starts + loop restarts); detection and video use them. Descending sweeps now work (regression test: 29→2 in order). Shipped piece's events identical. 56 tests.
 - 2026-11-27 tick 6: fixed review C10: notes normalised to unit peak (level = salience), plucks+bells share one gain, bell_db now relative (-4 dB). Measured in mix: primes -4.2 dBFS vs prime powers -7.5 dBFS onset (median, N>=21). All proposals, video and clips re-rendered. 57 tests.
 - 2026-11-27 tick 7: fixed review V4: events gated on the section's configured pluck_gain as well as the smoothed envelope (reproduced 2 leaked notes before the fix). Shipped scores unchanged (256 events each). 58 tests.
+- 2026-11-27 tick 8: fixed review V1+V5 (same function): clip validated before analysis, fps>0, ceil frame count, output trimmed with -t; Popen context manager + stderr capture, BrokenPipe → RuntimeError with exit code/stderr, figure always closed. ffprobe-based tests (streams, frame counts 1/5/7, duration) + failing-encoder test. 66 tests. Existing clips unaffected (integral lengths).

@@ -10,8 +10,10 @@ with the rendered audio, so ``--start/--end`` cut social clips from the same ren
 from __future__ import annotations
 
 import logging
+import math
 import shutil
 import subprocess
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -21,7 +23,7 @@ import numpy as np
 from .composition import Event, analyse, salience_curve
 from .config import CompositionConfig
 
-__all__ = ["VideoSpec", "render_video"]
+__all__ = ["VideoSpec", "frame_count", "render_video"]
 
 log = logging.getLogger(__name__)
 Aspect = Literal["16:9", "9:16", "1:1"]
@@ -49,23 +51,42 @@ def _window(cfg: CompositionConfig, sec_idx: int, x_now: float) -> tuple[float, 
     return max(lo, x_now - 0.85 * width), max(lo, x_now - 0.85 * width) + width
 
 
-def render_video(
-    cfg: CompositionConfig, audio: Path, out: Path, spec: VideoSpec = VideoSpec()
-) -> Path:  # pragma: no cover - exercised by the CLI smoke test with tiny configs
+def _ffmpeg_cmd(w: int, h: int, fps: int, audio: Path, start: float, dur: float, crf: int, out: Path) -> list[str]:
+    return [
+        "ffmpeg", "-v", "error", "-y",
+        "-f", "rawvideo", "-pix_fmt", "rgba", "-s", f"{w}x{h}", "-r", str(fps), "-i", "-",
+        "-ss", f"{start:.3f}", "-t", f"{dur:.3f}", "-i", str(audio),
+        "-map", "0:v", "-map", "1:a",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", str(crf), "-preset", "medium",
+        "-c:a", "aac", "-b:a", "256k", "-t", f"{dur:.3f}", "-movflags", "+faststart", str(out),
+    ]  # fmt: skip
+
+
+def frame_count(duration: float, fps: int) -> int:
+    """Frames needed to cover ``duration`` (a partial last frame still counts; at least one)."""
+    return max(1, math.ceil(duration * fps - 1e-9))
+
+
+def render_video(cfg: CompositionConfig, audio: Path, out: Path, spec: VideoSpec = VideoSpec()) -> Path:
+    if spec.fps <= 0:
+        raise ValueError("fps must be positive")
     if shutil.which("ffmpeg") is None:
         raise RuntimeError("ffmpeg not found on PATH")
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
     import soundfile as sf
 
-    gammas, tl, _sal, events = analyse(cfg)
-    seg = tl.segment
+    # validate the clip before the (expensive) full-score analysis
     audio_len = sf.info(audio).duration
     end = min(spec.end if spec.end is not None else audio_len, audio_len)
     if not 0 <= spec.start < end:
         raise ValueError(f"invalid clip range [{spec.start}, {end})")
+
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    gammas, tl, _sal, events = analyse(cfg)
+    seg = tl.segment
     w, h = SIZES[spec.aspect]
     portrait = h > w
 
@@ -92,76 +113,79 @@ def render_video(
         fig.text(0.5, 0.06, formula + "   —   " + gloss, ha="center", color="#9aa0aa", fontsize=big * 0.45)
     labels: list = []
 
-    cmd = [
-        "ffmpeg", "-v", "error", "-y",
-        "-f", "rawvideo", "-pix_fmt", "rgba", "-s", f"{w}x{h}", "-r", str(spec.fps), "-i", "-",
-        "-ss", f"{spec.start:.3f}", "-t", f"{end - spec.start:.3f}", "-i", str(audio),
-        "-map", "0:v", "-map", "1:a",
-        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", str(spec.crf), "-preset", "medium",
-        "-c:a", "aac", "-b:a", "256k", "-shortest", "-movflags", "+faststart", str(out),
-    ]  # fmt: skip
     out.parent.mkdir(parents=True, exist_ok=True)
-    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
-    assert proc.stdin is not None
-    n_frames = int((end - spec.start) * spec.fps)
+    n_frames = frame_count(end - spec.start, spec.fps)
+    cmd = _ffmpeg_cmd(w, h, spec.fps, audio, spec.start, end - spec.start, spec.crf, out)
     cache: dict[tuple[int, float, float, float], tuple[np.ndarray, np.ndarray]] = {}
-    try:
-        for f in range(n_frames):
-            t = spec.start + f / spec.fps
-            j = min(int(t * tl.rate), tl.t.size - 1)
-            sec_idx = int(tl.section[j])
-            x_now = float(tl.x[j])
-            n_now = float(tl.n_zeros[j])
-            lo, hi = _window(cfg, sec_idx, x_now)
-            key = (int(seg[j]), round(n_now, 3), round(lo, 2), round(hi, 2))
-            if key not in cache:
-                if len(cache) > 64:
-                    cache.clear()
-                xg = np.linspace(max(lo, 1.0001), hi, spec.grid_points)
-                cache[key] = (xg, salience_curve(xg, np.full(xg.size, n_now), gammas, cfg.taper))
-            xg, yg = cache[key]
-            yc = np.clip(yg, -1.2, 2.4)
-            ax.set_xlim(lo, hi)
-            dim_line.set_data(xg, yc)
-            done = xg <= x_now
-            live_line.set_data(xg[done], yc[done])
-            head.set_xdata([x_now, x_now])
-            subtitle.set_text(cfg.sections[sec_idx].name)
-            counter.set_text(f"{n_now:.0f} zero{'s' if round(n_now) != 1 else ''}" if n_now >= 1 else "no zeros yet")
-
-            for lab in labels:
-                lab.remove()
-            labels = []
-            same_bar: list[Event] = [
-                e for e in events if e.time <= t and int(seg[min(int(e.time * tl.rate), seg.size - 1)]) == seg[j]
-            ]
-            for e in same_bar[-40:]:
-                age = t - e.time
-                alpha = 1.0 if age < 0.15 else max(0.6, 1.0 - 0.2 * age)
-                txt = str(e.nearest) if e.kind != "ghost" else f"{e.x:.1f}"
-                y = min(e.salience, 2.2) + 0.12
-                size = (16 if portrait else 14) * (1.5 if age < 0.12 else 1.0)
-                labels.append(
-                    ax.text(
-                        e.x,
-                        y,
-                        txt,
-                        ha="center",
-                        color=COLORS[e.kind],
-                        alpha=alpha,
-                        fontsize=size,
-                        weight="bold" if e.kind == "prime" else "normal",
-                    )
+    broken = False
+    with tempfile.TemporaryFile() as err, subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=err) as proc:
+        assert proc.stdin is not None
+        try:
+            for f in range(n_frames):
+                t = spec.start + f / spec.fps
+                j = min(int(t * tl.rate), tl.t.size - 1)
+                sec_idx = int(tl.section[j])
+                x_now = float(tl.x[j])
+                n_now = float(tl.n_zeros[j])
+                lo, hi = _window(cfg, sec_idx, x_now)
+                key = (int(seg[j]), round(n_now, 3), round(lo, 2), round(hi, 2))
+                if key not in cache:
+                    if len(cache) > 64:
+                        cache.clear()
+                    xg = np.linspace(max(lo, 1.0001), hi, spec.grid_points)
+                    cache[key] = (xg, salience_curve(xg, np.full(xg.size, n_now), gammas, cfg.taper))
+                xg, yg = cache[key]
+                yc = np.clip(yg, -1.2, 2.4)
+                ax.set_xlim(lo, hi)
+                dim_line.set_data(xg, yc)
+                done = xg <= x_now
+                live_line.set_data(xg[done], yc[done])
+                head.set_xdata([x_now, x_now])
+                subtitle.set_text(cfg.sections[sec_idx].name)
+                counter.set_text(
+                    f"{n_now:.0f} zero{'s' if round(n_now) != 1 else ''}" if n_now >= 1 else "no zeros yet"
                 )
-            fig.canvas.draw()
-            proc.stdin.write(fig.canvas.buffer_rgba().tobytes())
-            if f % (spec.fps * 10) == 0:
-                log.info("video %.0f%%", 100 * f / max(n_frames, 1))
-    finally:
-        proc.stdin.close()
+
+                for lab in labels:
+                    lab.remove()
+                labels = []
+                same_bar: list[Event] = [
+                    e for e in events if e.time <= t and int(seg[min(int(e.time * tl.rate), seg.size - 1)]) == seg[j]
+                ]
+                for e in same_bar[-40:]:
+                    age = t - e.time
+                    alpha = 1.0 if age < 0.15 else max(0.6, 1.0 - 0.2 * age)
+                    txt = str(e.nearest) if e.kind != "ghost" else f"{e.x:.1f}"
+                    y = min(e.salience, 2.2) + 0.12
+                    size = (16 if portrait else 14) * (1.5 if age < 0.12 else 1.0)
+                    labels.append(
+                        ax.text(
+                            e.x,
+                            y,
+                            txt,
+                            ha="center",
+                            color=COLORS[e.kind],
+                            alpha=alpha,
+                            fontsize=size,
+                            weight="bold" if e.kind == "prime" else "normal",
+                        )
+                    )
+                fig.canvas.draw()
+                proc.stdin.write(fig.canvas.buffer_rgba().tobytes())
+                if f % (spec.fps * 10) == 0:
+                    log.info("video %.0f%%", 100 * f / max(n_frames, 1))
+        except BrokenPipeError:
+            broken = True  # the encoder exited early; its exit status and stderr say why
+        finally:
+            try:
+                proc.stdin.close()
+            except BrokenPipeError:
+                broken = True
+            plt.close(fig)
         proc.wait()
-        plt.close(fig)
-    if proc.returncode != 0:
-        raise RuntimeError(f"ffmpeg failed with code {proc.returncode}")
+        err.seek(0)
+        detail = err.read().decode(errors="replace").strip()[-500:]
+    if proc.returncode != 0 or broken:
+        raise RuntimeError(f"ffmpeg failed (exit {proc.returncode}): {detail or 'no output'}")
     _ = title
     return out
