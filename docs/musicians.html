@@ -59,8 +59,9 @@
       <li><a href="#dynamics">7 · Dynamics from arithmetic</a></li>
       <li><a href="#form">8 · Form</a></li>
       <li><a href="#sound">9 · Orchestration</a></li>
-      <li><a href="#yours">10 · Make your own</a></li>
-      <li><a href="#glossary">11 · Glossary</a></li>
+      <li><a href="#radio">10 · The radio edit</a></li>
+      <li><a href="#yours">11 · Make your own</a></li>
+      <li><a href="#glossary">12 · Glossary</a></li>
     </ol>
   </nav>
 
@@ -205,7 +206,35 @@
     </table></div>
     <p>Mix: drone −13 dB, plucks −5 dB, bells 4 dB under the plucks, breath −28 dB, low sine −21 dB, a 3.6 s convolution reverb at 24 % wet, soft saturation and a −1 dBFS ceiling.</p>
 
-    <h2 id="yours">10 · Make your own</h2>
+    <h2 id="radio">10 · The radio edit: <i>The Sound of the Primes</i></h2>
+    <p>The track at the top of the site takes the same mathematics and plays it with a band. Every note still comes from the explicit formula; what changes is tempo, arrangement and instruments.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Choice</th><th>What it is</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Tempo and metre</td><td>112.5 BPM in 5/4</td><td>One 8-second bar of the number line is exactly three bars of 5/4, and every whole number lands on an odd sixteenth, so the primes sit on the grid.</td></tr>
+        <tr><td>Groove</td><td>Drums on the eighth notes only</td><td>Eighths fall on the half-integers, where no prime can sound: the beat never covers a prime.</td></tr>
+        <tr><td>Tuning</td><td>Tempered (piano keys)</td><td>The sampled instruments play standard pitches; the exact microtonal tuning lives in the original pieces.</td></tr>
+        <tr><td>Primes</td><td>Upright piano</td><td>The melody of the primes, intimate and clear</td></tr>
+        <tr><td>Prime powers</td><td>Vibraphone</td><td>The "overtones" ring as metal, apart from the piano</td></tr>
+        <tr><td>Zeros</td><td>A slow synth pad on the first zeros' chord</td><td>The drone of the zeros, voiced openly so no two tones clash by a semitone</td></tr>
+        <tr><td>Bass and sub</td><td>Electric bass on E, sine sub</td><td>Grounds the E minor / G major ambiguity of section 4</td></tr>
+        <tr><td>Space</td><td>Reverb, delay and bus compression</td><td>One room for the whole band</td></tr>
+      </tbody>
+    </table></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Time</th><th>Section</th><th>Zeros</th><th>What happens</th></tr></thead>
+      <tbody>
+        <tr><td class="num">0:00</td><td>Intro</td><td class="num">0 → 1</td><td>the pad and the first zero</td></tr>
+        <tr><td class="num">0:16</td><td>Tuning in</td><td class="num">1, 2, 3, 5, 8, 13, 34, 200</td><td>eight bars; wrong notes slide onto the primes</td></tr>
+        <tr><td class="num">1:20</td><td>Chorus</td><td class="num">500</td><td>the band locks in on the exact primes</td></tr>
+        <tr><td class="num">1:52</td><td>Further out</td><td class="num">500</td><td>x runs from 31.5 to 130: an accelerando through larger primes</td></tr>
+        <tr><td class="num">2:16</td><td>Chorus</td><td class="num">500</td><td>back to the bar</td></tr>
+        <tr><td class="num">2:32</td><td>Outro</td><td class="num">55, 13</td><td>the bar runs backwards while zeros are removed; it ends on 3, then 2</td></tr>
+      </tbody>
+    </table></div>
+    <p>Mastered to −14 LUFS for streaming. The MIDI and the score are public; the separate instrument stems are not distributed.</p>
+
+    <h2 id="yours">11 · Make your own</h2>
     <p><b>With your own instruments.</b> Every render writes a MIDI file. Each note carries its exact microtonal pitch as a pitch bend (±2 semitones) on its own channel while it sounds, so it works with any MPE synth. Time is in seconds (60 BPM).</p>
     <p><b>Writing a score.</b> A score is a TOML file; musically its parameters mean:</p>
     <div class="table-wrap"><table>
@@ -222,7 +251,7 @@
     </table></div>
     <p>Try moving the melody's key against the drone: a minor third apart (the default) gives the E minor / G major ambiguity; a unison makes the drone's root the tonic of the primes; a tritone makes the two worlds clash.</p>
 
-    <h2 id="glossary">11 · Glossary</h2>
+    <h2 id="glossary">12 · Glossary</h2>
     <div class="table-wrap"><table>
       <tbody>
         <tr><td><b>Zero of ζ</b></td><td>a number ρ = ½ + iγ where the zeta function vanishes; γ is its "frequency". The Riemann Hypothesis says the real part is always ½.</td></tr>

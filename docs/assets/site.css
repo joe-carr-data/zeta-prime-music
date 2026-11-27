@@ -77,6 +77,10 @@ audio { width: 100%; margin-top: 12px; }
 .tag { display: inline-block; font: 600 11px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--rule); color: var(--muted); }
 .tag.main { border-color: var(--wave); color: var(--wave); }
 
+/* featured track */
+.card.feature { border-color: var(--wave); box-shadow: inset 4px 0 0 var(--wave); padding: 26px 28px; }
+.card.feature h3 { font-size: 24px; }
+
 /* media pair: 16:9 visualiser beside the vertical clip */
 .media-pair { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr); gap: 20px; margin-top: 24px; align-items: start; }
 @media (max-width: 760px) { .media-pair { grid-template-columns: minmax(0, 1fr); } }

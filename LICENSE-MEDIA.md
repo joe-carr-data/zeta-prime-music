@@ -10,4 +10,7 @@ credit: **"Zeta Prime Music" by Joe Carr**, with a link to
 <https://github.com/joe-carr-data/zeta-prime-music> and to the licence, and say if you changed
 anything.
 
+This covers the released mixes. Recordings made with third-party sampled instruments (such as the
+radio edit) are released as finished mixes only; their separate instrument stems are not distributed.
+
 The source code is licensed separately under the MIT licence (see `LICENSE`).

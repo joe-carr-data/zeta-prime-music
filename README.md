@@ -2,6 +2,8 @@
 
 ![Each zero of the Riemann zeta function is a wave; add 200 of them and the primes appear](docs/media/hero.gif)
 
+**▶ Listen to *The Sound of the Primes*:** https://joe-carr-data.github.io/zeta-prime-music/#listen — one bar of the number line played by piano, vibraphone, bass and drums while the zeros of ζ are added, until the band locks onto the primes.
+
 Compositions generated from the nontrivial zeros of the Riemann zeta function.
 
 Each zero ρ = ½ + iγ adds one oscillation x^{-1/2} cos(γ ln x) to the explicit formula for the
