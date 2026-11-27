@@ -24,3 +24,6 @@ clips:
 	uv run zeta-music video compositions/critical_strip.toml --audio output/critical_strip.wav --aspect 9:16 --start 112 --end 156 -o output/clips/3_further_out.mp4
 	uv run zeta-music video compositions/critical_strip.toml --audio output/critical_strip.wav --aspect 9:16 --start 172 --end 208 -o output/clips/4_reflection.mp4
 	uv run zeta-music video compositions/proposals/prime_pulse.toml --audio output/proposals/B_prime_pulse.wav --aspect 9:16 --start 10 --end 70 -o output/clips/5_prime_pulse_full_arc.mp4
+
+web:
+	uv run python scripts/build_web.py

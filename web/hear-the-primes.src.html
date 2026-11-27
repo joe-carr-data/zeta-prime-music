@@ -1,0 +1,339 @@
+<title>Hear the Primes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one working instrument (graph-paper plot + controls) on top, the explanation and the live list of zeros below. */
+:root {
+  --paper: #eef2f4; --panel: #f8fafb; --grid: #d6dfe4; --rule: #b9c6ce;
+  --ink: #14212b; --muted: #576874;
+  --prime: #b4233c; --power: #1d5fa8; --ghost: #8b98a3; --accent: #0f766e; --on-accent: #ffffff;
+  --display: "Space Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #0f1720; --panel: #131d27; --grid: #1c2a36; --rule: #2b3d4b;
+  --ink: #e4ebf0; --muted: #93a4b1;
+  --prime: #ff6b7f; --power: #6aa8ff; --ghost: #6f7f8b; --accent: #2dd4bf; --on-accent: #062a26; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #0f1720; --panel: #131d27; --grid: #1c2a36; --rule: #2b3d4b;
+  --ink: #e4ebf0; --muted: #93a4b1;
+  --prime: #ff6b7f; --power: #6aa8ff; --ghost: #6f7f8b; --accent: #2dd4bf; --on-accent: #062a26; color-scheme: dark }
+
+body { background: var(--paper); color: var(--ink); font: 15px/1.55 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 1040px; margin: 0 auto; padding-block: 28px 48px; display: grid; gap: 28px; }
+header { display: grid; gap: 6px; }
+h1 { font: 700 clamp(28px, 5vw, 44px)/1.05 var(--display); letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+.lead { margin: 0; color: var(--muted); max-width: 62ch; }
+.lead b { color: var(--ink); font-weight: 600; }
+
+.instrument { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 16px; display: grid; gap: 14px; }
+.plot { position: relative; width: 100%; aspect-ratio: 2.4 / 1; min-height: 220px; max-width: 100%; }
+canvas { width: 100%; height: 100%; display: block; }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; }
+.zeros { display: flex; align-items: center; gap: 10px; flex: 1 1 280px; min-width: 0; }
+.zeros label { font: 600 12px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); }
+.n { font: 600 22px var(--mono); font-variant-numeric: tabular-nums; min-width: 3.2ch; text-align: right; }
+.buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+button { font: 600 14px var(--body); border-radius: 8px; padding: 9px 14px; cursor: pointer; border: 1px solid var(--rule); background: transparent; color: var(--ink); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button[disabled] { opacity: 0.45; cursor: default; }
+
+.tally { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: 500 13px var(--mono); font-variant-numeric: tabular-nums; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--rule); display: inline-flex; gap: 8px; align-items: center; }
+.dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.status { font: 400 13px var(--mono); color: var(--muted); margin-left: auto; }
+
+.below { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 28px; }
+@media (max-width: 760px) { .below { grid-template-columns: minmax(0, 1fr); } .status { margin-left: 0; } }
+h2 { font: 700 18px var(--display); margin: 0 0 10px; }
+.legend { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.legend li { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 12px; align-items: baseline; }
+.legend .k { font: 600 12px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; }
+.formula { font: 400 14px var(--mono); background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 12px 14px; overflow-x: auto; white-space: nowrap; margin-top: 16px; }
+.zero-list { font: 400 13px/1.7 var(--mono); font-variant-numeric: tabular-nums; max-height: 300px; overflow-y: auto; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding-block: 6px; margin: 0; list-style: none; padding-left: 0; }
+.zero-list li { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); }
+.zero-list li span:first-child { color: var(--ink); }
+.note { color: var(--muted); font-size: 13px; margin: 10px 0 0; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Hear the Primes</h1>
+    <p class="lead">Each nontrivial zero of the Riemann zeta function adds one wave, <b>cos(γ ln x)</b>. Add enough of them and the waves pile up exactly on the primes. Move the slider, then press <b>Play bar</b> to hear the number line from 1.5 to 31.5.</p>
+  </header>
+
+  <section class="instrument" aria-label="Instrument">
+    <div class="plot"><canvas id="plot" role="img" aria-label="Sum of the first N zeta-zero waves over x from 1.5 to 31.5, with peaks labelled"></canvas></div>
+    <div class="controls">
+      <div class="zeros">
+        <label for="nz">Zeros</label>
+        <input id="nz" type="range" min="1" max="200" step="1" value="13">
+        <span class="n" id="nval">13</span>
+      </div>
+      <div class="buttons">
+        <button class="primary" id="play" type="button">Play bar</button>
+        <button id="build" type="button">Build up 1 → 200</button>
+        <button id="stop" type="button" disabled>Stop</button>
+      </div>
+    </div>
+    <div class="tally" aria-live="polite">
+      <span class="chip"><span class="dot" style="background: var(--prime)"></span><span id="t-prime">–</span></span>
+      <span class="chip"><span class="dot" style="background: var(--power)"></span><span id="t-power">–</span></span>
+      <span class="chip"><span class="dot" style="background: var(--ghost)"></span><span id="t-ghost">–</span></span>
+      <span class="status" id="status">Sound starts when you press Play.</span>
+    </div>
+  </section>
+
+  <section class="below">
+    <div>
+      <h2>What you are hearing</h2>
+      <ul class="legend">
+        <li><span class="k">Drone</span><span>One sine per zero, pitched in proportion to γ (the first zero, γ₁ = 14.1347, is E2). The zeros are not a harmonic series, so the chord is metallic.</span></li>
+        <li><span class="k" style="color: var(--prime)">Primes</span><span>Plucked strings at the peaks that land on a prime. Pitch is that harmonic of G2 folded into one octave: 3 is a fifth, 5 a major third, 7 a harmonic seventh.</span></li>
+        <li><span class="k" style="color: var(--power)">Powers</span><span>Bells at 4, 8, 9, 16, 25, 27: the smaller spikes at prime powers. Their weight is 1/k of a prime's, so they ring softer.</span></li>
+        <li><span class="k" style="color: var(--ghost)">Ghosts</span><span>Peaks that sit between integers because too few zeros are active. They play out of tune and disappear as you add zeros.</span></li>
+      </ul>
+      <div class="formula">ψ′(x) = 1 − 2x<sup>−1/2</sup> Σ<sub>γ</sub> cos(γ ln x) − 1/(x(x²−1))</div>
+      <p class="note">The plot shows the zeros' term, normalised so a prime's spike reaches about 1 and a prime square's about ½. Zeros use a Gaussian taper to soften ringing.</p>
+    </div>
+    <div>
+      <h2>Active zeros <span id="zcount" style="color: var(--muted); font-weight: 500"></span></h2>
+      <ul class="zero-list" id="zlist"></ul>
+      <p class="note">ρ = ½ + iγ. Ordinates computed with mpmath.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+const GAMMAS = /*__ZEROS__*/[];
+const X0 = 1.5, X1 = 31.5, BAR = 8.0, GRID = 1200;
+const FIB = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 200];
+const DRONE_BASE = 82.41, PLUCK_BASE = 98.0, DRONE_MAX_PARTIALS = 120;
+
+// ---------- maths (ported from zeta_music.composition) ----------
+function vonMangoldtPrime(n) { // returns [p, k] if n = p^k else null
+  if (n < 2) return null;
+  for (let p = 2; p * p <= n; p++) {
+    if (n % p === 0) { let m = n, k = 0; while (m % p === 0) { m /= p; k++; } return m === 1 ? [p, k] : null; }
+  }
+  return [n, 1];
+}
+function weights(N) {
+  const w = new Float64Array(N);
+  for (let k = 0; k < N; k++) { const u = (k + 0.5) / Math.max(N, 1); w[k] = Math.exp(-0.5 * (2.5 * u) ** 2); }
+  return w;
+}
+function salience(xs, N) {
+  const w = weights(N), out = new Float64Array(xs.length);
+  let iw = 0; for (let k = 0; k < N; k++) iw += w[k] * 2 * Math.PI / Math.log(GAMMAS[k] / (2 * Math.PI));
+  const iwOne = Math.exp(-0.5 * 1.25 ** 2) * 2 * Math.PI / Math.log(GAMMAS[0] / (2 * Math.PI));
+  iw = Math.max(iw, iwOne);
+  for (let j = 0; j < xs.length; j++) {
+    const x = xs[j], lx = Math.log(x); let osc = 0;
+    for (let k = 0; k < N; k++) osc += w[k] * Math.cos(GAMMAS[k] * lx);
+    out[j] = -2 * osc / Math.sqrt(x) * x / lx * Math.PI / iw;
+  }
+  return out;
+}
+function fold(n) { return n / 2 ** Math.floor(Math.log2(n)); }
+function pitch(x) { const n = Math.max(Math.round(x), 1); return PLUCK_BASE * fold(n) * 2 ** Math.min(3, Math.floor(Math.log2(n) / 2.5)) * (x / n); }
+function findPeaks(xs, ys, N) {
+  const peaks = [], thr = 0.18;
+  for (let i = 1; i < ys.length - 1; i++) {
+    if (!(ys[i] > ys[i - 1] && ys[i] >= ys[i + 1]) || ys[i] < thr) continue;
+    let l = ys[i], r = ys[i];
+    for (let a = i - 1; a >= 0 && ys[a] <= ys[i]; a--) l = Math.min(l, ys[a]);
+    for (let b = i + 1; b < ys.length && ys[b] <= ys[i]; b++) r = Math.min(r, ys[b]);
+    if (ys[i] - Math.max(l, r) < thr) continue;
+    const y0 = ys[i - 1], y1 = ys[i], y2 = ys[i + 1], den = y0 - 2 * y1 + y2;
+    const d = den !== 0 ? 0.5 * (y0 - y2) / den : 0;
+    const x = xs[i] + d * (xs[1] - xs[0]), n = Math.round(x);
+    const pk = vonMangoldtPrime(n), tol = Math.min(0.25, 0.5 * x * Math.PI / (14 + 2.2 * N));
+    let kind = "ghost";
+    if (pk && Math.abs(x - n) <= tol) kind = pk[1] === 1 ? "prime" : "power";
+    peaks.push({ x, y: ys[i], n, kind, freq: pitch(x) });
+  }
+  return peaks;
+}
+const XS = Float64Array.from({ length: GRID }, (_, i) => X0 + (X1 - X0) * i / (GRID - 1));
+const TRUE = []; for (let n = 2; n <= 31; n++) { const pk = vonMangoldtPrime(n); if (pk) TRUE.push({ n, prime: pk[1] === 1 }); }
+
+// ---------- state ----------
+const state = { N: 13, ys: null, peaks: [], playing: false, mode: null, barStart: 0, fibIndex: 0, struck: new Set() };
+const el = id => document.getElementById(id);
+const canvas = el("plot"), ctx2d = canvas.getContext("2d");
+
+function recompute() {
+  state.ys = salience(XS, state.N);
+  state.peaks = findPeaks(XS, state.ys, state.N);
+  const c = { prime: 0, power: 0, ghost: 0 };
+  for (const p of state.peaks) c[p.kind]++;
+  el("t-prime").textContent = `${c.prime} of 11 primes`;
+  el("t-power").textContent = `${c.power} of 6 prime powers`;
+  el("t-ghost").textContent = `${c.ghost} ghost${c.ghost === 1 ? "" : "s"}`;
+  el("nval").textContent = state.N;
+  el("zcount").textContent = `(${state.N})`;
+  el("zlist").innerHTML = Array.from({ length: state.N }, (_, k) =>
+    `<li><span>γ<sub>${k + 1}</sub> = ${GAMMAS[k].toFixed(6)}</span><span>${(1 / Math.hypot(0.5, GAMMAS[k])).toFixed(4)}</span></li>`).join("");
+  draw();
+}
+
+// ---------- drawing ----------
+function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function draw() {
+  const dpr = window.devicePixelRatio || 1, W = canvas.clientWidth, H = canvas.clientHeight;
+  if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); }
+  const g = ctx2d; g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  const padL = 8, padR = 8, padT = 26, padB = 26, YMIN = -1.0, YMAX = 2.0;
+  const X = x => padL + (x - X0) / (X1 - X0) * (W - padL - padR);
+  const Y = y => padT + (YMAX - Math.max(YMIN, Math.min(YMAX, y))) / (YMAX - YMIN) * (H - padT - padB);
+  const C = { grid: css("--grid"), rule: css("--rule"), ink: css("--ink"), muted: css("--muted"), prime: css("--prime"), power: css("--power"), ghost: css("--ghost"), accent: css("--accent") };
+  // graph paper
+  g.lineWidth = 1; g.strokeStyle = C.grid; g.beginPath();
+  for (let x = 2; x <= 31; x++) { g.moveTo(X(x) + 0.5, padT); g.lineTo(X(x) + 0.5, H - padB); }
+  for (let y = -1; y <= 2; y += 0.5) { g.moveTo(padL, Y(y) + 0.5); g.lineTo(W - padR, Y(y) + 0.5); }
+  g.stroke();
+  // true prime powers
+  for (const t of TRUE) { g.strokeStyle = t.prime ? C.prime : C.power; g.globalAlpha = 0.22; g.beginPath(); g.moveTo(X(t.n) + 0.5, padT); g.lineTo(X(t.n) + 0.5, H - padB); g.stroke(); }
+  g.globalAlpha = 1;
+  // axis
+  g.strokeStyle = C.rule; g.beginPath(); g.moveTo(padL, Y(0) + 0.5); g.lineTo(W - padR, Y(0) + 0.5); g.stroke();
+  g.fillStyle = C.muted; g.font = `11px ${css("--mono")}`; g.textAlign = "center";
+  for (let x = 5; x <= 30; x += 5) g.fillText(String(x), X(x), H - 8);
+  // curve: dim, then traced part bright while a bar plays
+  const head = currentX();
+  const path = (until) => { g.beginPath(); let started = false; for (let i = 0; i < GRID; i++) { if (XS[i] > until) break; const px = X(XS[i]), py = Y(state.ys[i]); if (!started) { g.moveTo(px, py); started = true; } else g.lineTo(px, py); } };
+  g.lineJoin = "round"; g.strokeStyle = C.ink; g.globalAlpha = state.playing ? 0.25 : 1; g.lineWidth = 1.6; path(X1); g.stroke(); g.globalAlpha = 1;
+  if (state.playing && head !== null) { g.lineWidth = 2; path(head); g.stroke(); g.strokeStyle = C.accent; g.lineWidth = 1.5; g.beginPath(); g.moveTo(X(head), padT - 6); g.lineTo(X(head), H - padB); g.stroke(); }
+  // labels
+  g.font = `600 12px ${css("--mono")}`;
+  for (const p of state.peaks) {
+    if (state.playing && head !== null && p.x > head) continue;
+    g.fillStyle = p.kind === "prime" ? C.prime : p.kind === "power" ? C.power : C.ghost;
+    g.fillText(p.kind === "ghost" ? p.x.toFixed(1) : String(p.n), X(p.x), Math.max(12, Y(p.y) - 6));
+  }
+}
+function currentX() {
+  if (!state.playing || !audio) return null;
+  const t = audio.ctx.currentTime - state.barStart;
+  return X0 + (X1 - X0) * Math.max(0, Math.min(1, t / BAR));
+}
+
+// ---------- audio ----------
+let audio = null;
+function makeAudio() {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const master = ctx.createGain(); master.gain.value = 0.8;
+  const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 3;
+  const verb = ctx.createConvolver(), wet = ctx.createGain(); wet.gain.value = 0.28;
+  const len = Math.floor(ctx.sampleRate * 2.6), ir = ctx.createBuffer(2, len, ctx.sampleRate);
+  for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); let s = 0; for (let i = 0; i < len; i++) { s = 0.6 * s + 0.4 * (Math.random() * 2 - 1); d[i] = s * Math.exp(-6.9 * i / len); } }
+  verb.buffer = ir;
+  const bus = ctx.createGain(); bus.connect(master); bus.connect(verb); verb.connect(wet); wet.connect(master);
+  master.connect(comp); comp.connect(ctx.destination);
+  return { ctx, bus, drone: null };
+}
+function ks(freq, dur, bright, t60) {
+  const ctx = audio.ctx, sr = ctx.sampleRate, n = Math.floor(dur * sr), buf = ctx.createBuffer(1, n, sr), y = buf.getChannelData(0);
+  const period = sr / freq, p = Math.max(2, Math.floor(period - 0.5)), f = Math.min(1, Math.max(0, period - p - 0.5));
+  const w0 = 2 * Math.PI * freq / sr;
+  const hr = 0.5 * (1 - f) + 0.5 * Math.cos(w0) + 0.5 * f * Math.cos(2 * w0), hi = -0.5 * Math.sin(w0) - 0.5 * f * Math.sin(2 * w0);
+  const g = Math.min(Math.pow(10, -3 / (t60 * freq)) / Math.max(Math.hypot(hr, hi), 1e-6), 0.9999);
+  const pole = (1 - bright) * 0.9; let lp = 0, mean = 0;
+  const ex = new Float32Array(p + 2); for (let i = 0; i < p + 2; i++) { lp = (1 - pole) * (Math.random() * 2 - 1) + pole * lp; ex[i] = lp; mean += lp; }
+  mean /= p + 2; const line = new Float32Array(n + p + 2); for (let i = 0; i < p + 2; i++) line[i] = ex[i] - mean;
+  const h0 = g * 0.5 * (1 - f), h1 = g * 0.5, h2 = g * 0.5 * f;
+  for (let i = p + 2; i < line.length; i++) line[i] = h0 * line[i - p] + h1 * line[i - p - 1] + h2 * line[i - p - 2];
+  let peak = 0; for (let i = 0; i < n; i++) { y[i] = line[i + p + 2]; peak = Math.max(peak, Math.abs(y[i])); }
+  const fade = Math.floor(0.01 * sr); for (let i = 0; i < n; i++) { y[i] /= peak || 1; if (i > n - fade) y[i] *= (n - i) / fade; }
+  return buf;
+}
+function strike(p, when) {
+  const ctx = audio.ctx, out = ctx.createGain(), pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+  const level = Math.min(p.y, 1.3) * (p.kind === "ghost" ? 0.3 : p.kind === "power" ? 0.38 : 0.55);
+  out.gain.value = level;
+  if (pan) { pan.pan.value = Math.max(-0.85, Math.min(0.85, (fold(Math.max(p.n, 1)) - 1.5) * 1.5)); out.connect(pan); pan.connect(audio.bus); } else out.connect(audio.bus);
+  if (p.kind === "power") { // FM bell an octave up
+    const car = ctx.createOscillator(), mod = ctx.createOscillator(), mg = ctx.createGain(), env = ctx.createGain();
+    car.frequency.value = p.freq * 2; mod.frequency.value = p.freq * 2.8;
+    mg.gain.setValueAtTime(p.freq * 4.4, when); mg.gain.exponentialRampToValueAtTime(1, when + 3);
+    env.gain.setValueAtTime(0.0001, when); env.gain.exponentialRampToValueAtTime(1, when + 0.004); env.gain.exponentialRampToValueAtTime(0.001, when + 3);
+    mod.connect(mg); mg.connect(car.frequency); car.connect(env); env.connect(out);
+    car.start(when); mod.start(when); car.stop(when + 3.2); mod.stop(when + 3.2);
+  } else {
+    const src = ctx.createBufferSource();
+    src.buffer = p.kind === "ghost" ? ks(p.freq, 1.2, 0.25, 0.8) : ks(p.freq, 3.0, 0.65, 2.8);
+    src.connect(out); src.start(when);
+  }
+}
+function startDrone() {
+  stopDrone();
+  const ctx = audio.ctx, n = Math.min(state.N, DRONE_MAX_PARTIALS), gain = ctx.createGain();
+  let sum = 0; const amps = []; for (let k = 0; k < n; k++) { const a = Math.hypot(0.5, GAMMAS[0]) / Math.hypot(0.5, GAMMAS[k]); amps.push(a); sum += a * a; }
+  gain.gain.setValueAtTime(0.0001, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.16 / Math.sqrt(Math.max(sum, 1)), ctx.currentTime + 0.6);
+  gain.connect(audio.bus);
+  const oscs = [];
+  for (let k = 0; k < n; k++) {
+    const f = DRONE_BASE * GAMMAS[k] / GAMMAS[0]; if (f > 5000) break;
+    const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = f; g.gain.value = amps[k];
+    o.connect(g); g.connect(gain); o.start(); oscs.push(o);
+  }
+  audio.drone = { gain, oscs };
+}
+function stopDrone() {
+  if (!audio || !audio.drone) return;
+  const { gain, oscs } = audio.drone, t = audio.ctx.currentTime;
+  gain.gain.cancelScheduledValues(t); gain.gain.setValueAtTime(gain.gain.value, t); gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
+  for (const o of oscs) o.stop(t + 0.45);
+  audio.drone = null;
+}
+function scheduleBar() {
+  const t0 = audio.ctx.currentTime + 0.08;
+  state.barStart = t0;
+  for (const p of state.peaks) strike(p, t0 + (p.x - X0) / (X1 - X0) * BAR);
+}
+let timer = null, raf = 0;
+async function play(mode) {
+  if (!audio) audio = makeAudio();
+  if (audio.ctx.state === "suspended") await audio.ctx.resume();
+  stop(true);
+  state.mode = mode; state.playing = true; state.fibIndex = 0;
+  if (mode === "build") setN(FIB[0]);
+  startDrone(); scheduleBar();
+  el("stop").disabled = false;
+  el("status").textContent = mode === "build" ? `Bar 1 of ${FIB.length}: ${state.N} zero` : `Playing x = 1.5 → 31.5 with ${state.N} zeros`;
+  timer = setInterval(tick, 50);
+  const loop = () => { draw(); if (state.playing) raf = requestAnimationFrame(loop); };
+  raf = requestAnimationFrame(loop);
+}
+function tick() {
+  const t = audio.ctx.currentTime - state.barStart;
+  if (t < BAR + 0.25) return;
+  if (state.mode === "build" && state.fibIndex < FIB.length - 1) {
+    state.fibIndex++; setN(FIB[state.fibIndex]); startDrone(); scheduleBar();
+    el("status").textContent = `Bar ${state.fibIndex + 1} of ${FIB.length}: ${state.N} zeros`;
+  } else stop(false);
+}
+function stop(silent) {
+  clearInterval(timer); cancelAnimationFrame(raf); stopDrone();
+  state.playing = false; el("stop").disabled = true;
+  if (!silent) el("status").textContent = "Stopped. Change the zeros and play again.";
+  draw();
+}
+function setN(n) { state.N = n; el("nz").value = n; recompute(); }
+
+el("nz").addEventListener("input", e => { setN(+e.target.value); if (state.playing && audio) startDrone(); });
+el("play").addEventListener("click", () => play("bar"));
+el("build").addEventListener("click", () => play("build"));
+el("stop").addEventListener("click", () => stop(false));
+window.addEventListener("resize", draw);
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+if (document.fonts) document.fonts.ready.then(draw);
+recompute();
+</script>

@@ -10,7 +10,7 @@ This file drives the autonomous 5-minute improvement loop. Keep the backlog rank
 Outreach assets (plan: (private link) — Build phase 1–20 Dec 2026):
 O2b. Clips: burn-in hook caption ("Add the zeros of ζ one by one…") + end card with repo/handle once the release name is decided.
 O5. Video: use the empty lower third in 9:16 (e.g. the zero 'chord' as bars at γ_k).
-O3. Interactive web demo: slider adds zeros, Web Audio plays the bar (static page, no backend).
+O3b. Web demo follow-ups: tremolo per zero, a 'show waves' toggle (individual cos(γ ln x) traces), share-friendly #N hash.
 O4. LICENSE (MIT code) once the user decides on audio licence (CC BY 4.0 recommended for clips/stems).
 review (docs/reviews/review_review3_raw.log), fix first:
 V2. Video for descending sweeps highlights unplayed side; sliding window direction.
@@ -47,3 +47,4 @@ C5. Document fixed-n Landau limit; window in ordinate space; test far-end salien
 - 2026-11-27 tick 11: fixed review C3: two-pass drone (no retained envelopes; memory flat in #zeros), stems summed in place one at a time, salience chunk sized to ~16 MB/temporary, reverb blended per channel in place (oaconvolve tried: worse, reverted). Peak RSS 2.38 GB → 1.49 GB (−37%), output identical within 1 LSB (24-bit). Remaining peak = reverb FFT + master filtfilt on the full 208 s; fine for now.
 - 2026-11-27 tick 12: fixed review C7: KS loop gain divides out |H(w0)|; notes whose required gain would exceed 0.9999 are synthesised at 2/4/8x and decimated (resample_poly). Measured t60 now 2.50 s at 98–1568 Hz (was 0.33 s at 1568 Hz), tuning 0.0 cents; decay + tuning tests to 2093 Hz. All media re-rendered (movement III high notes now ring). 94 tests.
 - 2026-11-27 tick 12b: acted on review (docs/reviews/review_review5_raw.log): quiet sections (gain 0.01) keep notes; degenerate reverb returns dry instead of NaN + reverb_t60>=0.05; frequency validation relaxed (fundamentals < 0.45 sr; partials/notes above are dropped at render with a warning — 8 kHz scores playable); sections/loops must span >= 2 control frames; seed validated; mix_notes accumulates in place (peak RSS 1.49 → 1.37 GB); chunk floor 16; video test verifies clip audio comes from the requested interval. Shipped audio unchanged. 101 tests.
+- 2026-11-27 tick 13: O3 done: interactive demo 'Hear the Primes' (web/hear-the-primes.src.html → scripts/build_web.py → output/web/, `make web`), published privately at (private link) Slider 1–200 zeros, live graph-paper plot with labelled peaks, Play bar (drone + KS plucks + FM bells via Web Audio), Build-up through Fibonacci counts. JS maths verified against Python (identical peaks at N=1/13/200). 102 tests.
