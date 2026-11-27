@@ -68,10 +68,24 @@
           <audio controls preload="none" src="media/audio/critical-strip-revised.m4a"></audio>
         </div>
       </div>
-      <div class="card" style="margin-top:24px; padding:0; overflow:hidden">
-        <video controls preload="none" poster="media/critical-strip-poster.jpg" src="media/critical-strip.mp4" style="width:100%"></video>
+      <div class="media-pair">
+        <figure class="card" style="padding:0; overflow:hidden; margin:0">
+          <video controls preload="none" poster="media/critical-strip-poster.jpg" src="media/critical-strip.mp4" style="width:100%"></video>
+          <figcaption class="meta" style="padding:10px 14px">The visualiser: the spike curve forming in sync with the music, every note labelled as it is struck.</figcaption>
+        </figure>
+        <figure class="card" style="padding:0; overflow:hidden; margin:0">
+          <video controls preload="none" playsinline poster="media/prime-pulse-60s-poster.jpg" src="media/prime-pulse-60s.mp4" style="width:100%"></video>
+          <figcaption class="meta" style="padding:10px 14px">The 60-second version: zeros 1 → 200, one bar at a time.</figcaption>
+        </figure>
       </div>
-      <p class="meta" style="margin-top:10px">The visualiser: the spike curve forming in sync with the music, every note labelled as it is struck.</p>
+    </div>
+  </section>
+
+  <section id="proof" style="padding-block:40px">
+    <div class="wrap">
+      <div class="callout" style="margin:0; max-width:880px">
+        <b>About the recent proof.</b> In November 2026 Levent Alpöge announced a proof of the Riemann Hypothesis, with a formal version checked in Lean (<a href="https://en.wikipedia.org/wiki/Alp%C3%B6ge's_proof_of_the_Riemann_hypothesis">overview</a>). This music does not use or depend on it: it is built from numerically computed zeros and the explicit formula, and would sound exactly the same either way. It is simply what the zeros on the critical line sound like.
+      </div>
     </div>
   </section>
 
@@ -134,7 +148,7 @@ uv run zeta-music zeros 5
 <footer>
   <div class="wrap">
     <span>Zeta Prime Music · <a href="https://github.com/joe-carr-data/zeta-prime-music">source</a></span>
-    <span>Inspired by the <i>From First Principles</i> podcast, episode 69, and Riemann's 1859 paper. Code MIT · music and video CC BY 4.0.</span>
+    <span>Inspired by the <a href="https://www.youtube.com/watch?v=zSGBxRjzyb8"><i>From First Principles</i> podcast, episode 69</a> (<a href="https://ffppod.com">ffppod.com</a>), and Riemann's 1859 paper. Code MIT · music and video CC BY 4.0.</span>
   </div>
 </footer>
 

@@ -10,7 +10,10 @@ primes. Add enough of them and the sum spikes at 2, 3, 5, 7, 11… with smaller 
 **zeros are the drone**, the **primes are the melody**, and the piece *Critical Strip* lets you hear
 the primes come into tune as zeros are added one Fibonacci number at a time.
 
-Inspired by *From First Principles* ep. 69 — see [docs/VIDEO_ANALYSIS.md](docs/VIDEO_ANALYSIS.md).
+Inspired by [*From First Principles* ep. 69](https://www.youtube.com/watch?v=zSGBxRjzyb8) — see [docs/VIDEO_ANALYSIS.md](docs/VIDEO_ANALYSIS.md).
+
+On the November 2026 proof of the Riemann Hypothesis by Levent Alpöge: this music does not use or depend on it.
+It is built from numerically computed zeros and the explicit formula, and would sound the same either way.
 
 **Musicians:** how the piece is built (tuning, harmony, rhythm, dynamics, form), with the
 maths behind every note: [docs/FOR_MUSICIANS.md](docs/FOR_MUSICIANS.md).
