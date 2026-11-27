@@ -159,10 +159,13 @@ def spike_density(
     xs = np.asarray(x, dtype=np.float64)
     if np.any(xs <= 1.0):
         raise ValueError("spike_density requires x > 1")
+    if chunk <= 0:
+        raise ValueError("chunk must be positive")
     g = np.asarray(gammas, dtype=np.float64)
     w = taper_weights(g.size, taper)
-    out = np.empty_like(xs)
-    flat_x, flat_out = xs.reshape(-1), out.reshape(-1)
+    # flat C-ordered buffers: reshape(-1) of a non-C array would silently write into a copy
+    flat_x = np.ravel(xs, order="C")
+    flat_out = np.empty(flat_x.size, dtype=np.float64)
     for sl in _chunks(flat_x.size, chunk):
         xc = flat_x[sl]
         osc = w @ np.cos(np.outer(g, np.log(xc))) if g.size else np.zeros_like(xc)
@@ -170,7 +173,7 @@ def spike_density(
         if include_trivial:
             val -= 1.0 / (xc * (xc * xc - 1.0))
         flat_out[sl] = val
-    return out
+    return flat_out.reshape(xs.shape)
 
 
 def psi_explicit(x: ArrayLike, gammas: ArrayLike, taper: Taper = "none") -> FloatArray:
