@@ -40,11 +40,6 @@ class VideoSpec:
     crf: int = 20
 
 
-def _segments(x: np.ndarray) -> np.ndarray:
-    """Index of the bar/sweep each control frame belongs to (increments when x jumps back)."""
-    return np.concatenate([[0], np.cumsum(np.diff(x) < 0)])
-
-
 def _window(cfg: CompositionConfig, sec_idx: int, x_now: float) -> tuple[float, float]:
     sec = cfg.sections[sec_idx]
     lo, hi = sorted((sec.x_start, sec.x_end))
@@ -66,7 +61,7 @@ def render_video(
     import soundfile as sf
 
     gammas, tl, _sal, events = analyse(cfg)
-    seg = _segments(tl.x)
+    seg = tl.segment
     audio_len = sf.info(audio).duration
     end = min(spec.end if spec.end is not None else audio_len, audio_len)
     if not 0 <= spec.start < end:

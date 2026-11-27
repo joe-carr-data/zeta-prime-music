@@ -1,14 +1,8 @@
 import shutil
 
-import numpy as np
 import pytest
 
-from zeta_music.video import VideoSpec, _segments, _window, render_video
-
-
-def test_segments_increment_on_loop_reset():
-    x = np.array([1.5, 2.0, 3.0, 1.5, 2.0, 1.5])
-    assert _segments(x).tolist() == [0, 0, 0, 1, 1, 2]
+from zeta_music.video import VideoSpec, _window, render_video
 
 
 def test_window_loop_and_sliding(tiny_config):

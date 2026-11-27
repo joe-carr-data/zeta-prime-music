@@ -13,7 +13,6 @@ O5. Video: use the empty lower third in 9:16 (e.g. the zero 'chord' as bars at �
 O3. Interactive web demo: slider adds zeros, Web Audio plays the bar (static page, no backend).
 O4. LICENSE (MIT code) once the user decides on audio licence (CC BY 4.0 recommended for clips/stems).
 review findings (docs/reviews/review_2026-11-27_raw.log), fix in order:
-C6. detect_events treats any negative diff(x) as loop reset → descending sweeps lose notes. Carry explicit boundaries.
 C10. Stem normalisation cancels 1/k bell loudness cue. Calibrate voices at unit salience, shared gain.
 C3. Memory: 500 control envelopes 1.66 GB + 5 float64 stems. Normalise first, synthesise per-partial without retaining rows, mix sequentially.
 C9. Config validation (sweep literal, finite values, sr-dependent cutoffs).
@@ -39,3 +38,4 @@ C5. Document fixed-n Landau limit; window in ordinate space; test far-end salien
 - 2026-11-27 tick 3: fixed review C4 (spike_density layout bug: flat C buffer + reshape; chunk>0 validated). review requested on ticks 1–3.
 - 2026-11-27 tick 3b: acted on review (docs/reviews/review_review2_raw.log): salience floor = one *tapered* zero (first bar no longer attenuated, N=1 full scale for all tapers); pan regression test; negative-stride + chunk=-1 tests; COMPOSITION.md pitch formula updated.
 - 2026-11-27 tick 4: O1+O2 done: `zeta-music video` (matplotlib→ffmpeg pipe, 16:9/9:16/1:1, --start/--end) + `make video clips`. Full 16:9 video (3:32, 11 MB) and 5 vertical clips (36–60 s). analyse() split out of render(). 55 tests.
+- 2026-11-27 tick 5: fixed review C6: Timeline carries explicit `segment` ids (section starts + loop restarts); detection and video use them. Descending sweeps now work (regression test: 29→2 in order). Shipped piece's events identical. 56 tests.

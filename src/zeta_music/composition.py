@@ -64,6 +64,7 @@ class Timeline:
     x: FloatArray  # point on the number line
     n_zeros: FloatArray  # fractional number of active zeros
     section: NDArray[np.int64]  # section index
+    segment: NDArray[np.int64]  # bar / sweep index: increments at every section start and loop restart
     drone_gain: FloatArray
     pluck_gain: FloatArray
     breath_gain: FloatArray
@@ -97,10 +98,14 @@ def _section_curves(sec: Section, u: FloatArray) -> tuple[FloatArray, FloatArray
 
 def build_timeline(cfg: CompositionConfig) -> Timeline:
     rate = cfg.control_rate
-    parts: dict[str, list[FloatArray]] = {k: [] for k in ("x", "n", "sec", "dg", "pg", "bg")}
+    parts: dict[str, list[FloatArray]] = {k: [] for k in ("x", "n", "sec", "seg", "dg", "pg", "bg")}
+    seg_offset = 0
     for i, sec in enumerate(cfg.sections):
         u = np.arange(round(sec.duration * rate)) / rate
         x, n = _section_curves(sec, u)
+        local = np.floor(u / sec.loop).astype(np.int64) if sec.loop else np.zeros(u.size, dtype=np.int64)
+        parts["seg"].append(seg_offset + local)
+        seg_offset += int(local.max(initial=0)) + 1
         parts["x"].append(x)
         parts["n"].append(n)
         parts["sec"].append(np.full(u.size, i))
@@ -115,6 +120,7 @@ def build_timeline(cfg: CompositionConfig) -> Timeline:
         x=cat["x"],
         n_zeros=cat["n"],
         section=cat["sec"].astype(np.int64),
+        segment=cat["seg"].astype(np.int64),
         drone_gain=synth.smooth(cat["dg"], rate, 0.8),
         pluck_gain=synth.smooth(cat["pg"], rate, 2.0),
         breath_gain=synth.smooth(cat["bg"], rate, 0.8),
@@ -223,8 +229,9 @@ def event_pan(x: float) -> float:
 
 def detect_events(tl: Timeline, sal: FloatArray, cfg: CompositionConfig) -> list[Event]:
     """Find peaks of the salience curve and classify them as primes, prime powers or ghosts."""
-    # Peaks are found section-by-section and loop-by-loop so wrap-around never fuses peaks.
-    breaks = np.flatnonzero(np.diff(tl.x) < 0) + 1
+    # Peaks are found bar-by-bar / sweep-by-sweep (explicit segment ids from the timeline), so a
+    # loop restart or section change never fuses peaks and descending sweeps work.
+    breaks = np.flatnonzero(np.diff(tl.segment) != 0) + 1
     bounds = [0, *breaks.tolist(), tl.x.size]
     events: list[Event] = []
     for a, b in itertools.pairwise(bounds):
@@ -432,6 +439,7 @@ def _pad_timeline(tl: Timeline, n: int) -> Timeline:
         x=pad(tl.x),
         n_zeros=pad(tl.n_zeros),
         section=pad(tl.section),
+        segment=pad(tl.segment),
         drone_gain=synth.smooth(pad(tl.drone_gain, 0.0), tl.rate, 0.5),
         pluck_gain=pad(tl.pluck_gain, 0.0),
         breath_gain=pad(tl.breath_gain, 0.0),

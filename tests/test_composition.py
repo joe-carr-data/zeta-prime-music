@@ -104,3 +104,24 @@ def test_pan_is_continuous_across_powers_of_two():
     """Regression : stereo position must not flip as a peak converges on n."""
     for n in (2, 4, 8, 16):
         assert event_pan(n - 0.01) == event_pan(n + 0.01) == event_pan(float(n))
+
+
+def test_segments_mark_sections_and_loops(tiny_config):
+    tl = build_timeline(tiny_config)
+    # a: one sweep; b: 2 loops; c: one sweep that starts where b ended (x=20 -> 20, no jump back)
+    assert np.unique(tl.segment).tolist() == [0, 1, 2, 3]
+    assert tl.segment[np.searchsorted(tl.t, 6.0)] == 3
+
+
+def test_descending_sweep_finds_primes():
+    """Regression : a sweep running down the number line used to lose every note."""
+    from zeta_music.config import CompositionConfig, Section
+
+    cfg = CompositionConfig(
+        title="down", sample_rate=8000, control_rate=1000,
+        sections=[Section("down", 6.0, 30.0, 1.6, 150, 150)],
+    )  # fmt: skip
+    tl = build_timeline(cfg)
+    sal = salience_curve(tl.x, tl.n_zeros, load_zeros(150))
+    primes = [e.nearest for e in detect_events(tl, sal, cfg) if e.kind == "prime"]
+    assert primes == [29, 23, 19, 17, 13, 11, 7, 5, 3, 2]
