@@ -42,6 +42,16 @@ def test_fold_and_pitch():
     assert event_pitch(2.0, 100.0) == pytest.approx(100.0)
 
 
+def test_pitch_is_continuous_across_powers_of_two():
+    """Regression : x=1.9998 and x=2.0005 must not be an octave apart."""
+    lo, hi = event_pitch(1.9998, 98.0), event_pitch(2.0005, 98.0)
+    assert abs(1200 * np.log2(hi / lo)) < 1.0  # cents
+    for n in (4, 8, 16, 32):
+        a, b = event_pitch(n - 0.01, 98.0), event_pitch(n + 0.01, 98.0)
+        # the only difference left is the honest detune x/n, never an octave
+        assert 1200 * np.log2(b / a) == pytest.approx(1200 * np.log2((n + 0.01) / (n - 0.01)), abs=0.01)
+
+
 def test_render_tiny_is_deterministic(tiny_config):
     a = render(tiny_config)
     b = render(tiny_config)

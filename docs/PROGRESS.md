@@ -8,7 +8,6 @@ This file drives the autonomous 5-minute improvement loop. Keep the backlog rank
 
 ## Backlog (highest value first)
 review findings (docs/reviews/review_2026-11-27_raw.log), fix in order:
-C2. Octave jump: x=1.9998→196 Hz vs x=2.0005→98 Hz. Register from integer n, detune by x*/n; same for pan.
 C1. salience_curve explodes (−3.9e10) when N→0 (intro). Normalise oscillatory term separately; guard N<1.
 C4. spike_density: empty_like keeps Fortran order → reshape copy → uninitialised output. Flat alloc + reshape; chunk>0.
 C6. detect_events treats any negative diff(x) as loop reset → descending sweeps lose notes. Carry explicit boundaries.
@@ -32,3 +31,4 @@ C5. Document fixed-n Landau limit; window in ordinate space; test far-end salien
 ## Log
 - 2026-11-27: initial build; first render 204 s, 182 primes / 46 prime powers / 29 ghosts.
 - 2026-11-27: drone render restricted to each zero's active span: 3x faster, identical output.
+- 2026-11-27 tick 1: fixed review C2 (octave jump at powers of 2): pitch/pan anchored to nearest integer, detuned by x/n. Prime 2 now 95.5–98.3 Hz (was 98/196). Regression test added.

@@ -188,8 +188,19 @@ def fold(x: FloatArray | float) -> FloatArray:
 
 
 def event_pitch(x: float, base_hz: float) -> float:
-    octave = min(3.0, float(np.floor(np.log2(x) / 2.5)))
-    return float(base_hz * fold(x) * 2.0**octave)
+    """Pitch for a peak at ``x``: the folded harmonic of the nearest integer ``n``, detuned by ``x/n``.
+
+    Register and pitch class come from the integer, so a peak converging on ``n`` from either side
+    glides smoothly into tune instead of jumping an octave at powers of two.
+    """
+    n = max(round(x), 1)
+    octave = min(3.0, float(np.floor(np.log2(n) / 2.5)))
+    return float(base_hz * fold(float(n)) * 2.0**octave * (x / n))
+
+
+def event_pan(x: float) -> float:
+    n = max(round(x), 1)
+    return float(np.clip((fold(float(n)) - 1.5) * 1.5, -0.85, 0.85))
 
 
 def detect_events(tl: Timeline, sal: FloatArray, cfg: CompositionConfig) -> list[Event]:
@@ -225,7 +236,7 @@ def detect_events(tl: Timeline, sal: FloatArray, cfg: CompositionConfig) -> list
             else:
                 kind = "ghost"
             f = event_pitch(xj, cfg.pluck_base_hz)
-            pan = float(np.clip((fold(xj) - 1.5) * 1.5, -0.85, 0.85))
+            pan = event_pan(xj)
             events.append(Event(tj, xj, float(seg[i]), nearest, kind, float(tl.n_zeros[j]), f, pan))
     events.sort(key=lambda e: e.time)
     return events
