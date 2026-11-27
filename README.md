@@ -12,6 +12,9 @@ the primes come into tune as zeros are added one Fibonacci number at a time.
 
 Inspired by *From First Principles* ep. 69 — see [docs/VIDEO_ANALYSIS.md](docs/VIDEO_ANALYSIS.md).
 
+**Musicians:** how the piece is built (tuning, harmony, rhythm, dynamics, form), with the
+maths behind every note: [docs/FOR_MUSICIANS.md](docs/FOR_MUSICIANS.md).
+
 ## Quick start
 
 ```bash
