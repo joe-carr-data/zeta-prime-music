@@ -62,3 +62,6 @@
 - Site and README: a note on the November 2026 announced proof of the Riemann Hypothesis ("this is what those zeros sound like").
 - Wording: the proof is presented as announced/claimed and under examination, not as settled.
 - Video for the produced radio edit: `zeta-music video` accepts a score with a `[produce]` table (labels follow the arrangement; note times identical to the produced events), `--title`, captions wrapped inside the frame; `make video-j` renders proposal J's full video and five vertical clips.
+- Fast re-renders: per-voice cache of raw instrument audio (`output/cache/`, SHA-256 key of notes, tuning, instrument, plugin state bytes and parameters; atomic writes; `--no-cache`, `--clear-cache`, `zeta-music clear-cache`) and plugin voices rendered in parallel processes (`--jobs`). Proposal J: cold render 39 min (Drum Lab alone ~35 min), mix-only change 29 s.
+- Render cache review fixes: `clear-cache` removes only files named by a cache key; the key adds the plugin build (Info.plist digest), pedalboard and FluidSynth versions and the render code. Measured on J: cold 39 min (Drum Lab alone ~35 min), mix-only re-render 29 s.
+- Site and README introduction rewritten: "Nobody wrote this music. It was hiding in the prime numbers.", a three-part section on the mystery, and a README with buttons, badges and a maths-to-music table.

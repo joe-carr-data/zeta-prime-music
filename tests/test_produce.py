@@ -472,7 +472,7 @@ gain_db = 3.0
     )
     import soundfile as sf
 
-    meta = produce_mod.produce(score, tmp_path / "out", ("tempered",), audio=True)
+    meta = produce_mod.produce(score, tmp_path / "out", ("tempered",), audio=True, cache_dir=tmp_path / "cache")
     rep = meta["reports"]["tempered"]
     assert rep["master"]["integrated_lufs"] == pytest.approx(-14.0, abs=0.2)
     assert rep["master"]["true_peak_dbtp"] <= -1.0

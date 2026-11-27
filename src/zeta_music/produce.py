@@ -19,10 +19,15 @@ module only decides *how those notes are played*:
 
 from __future__ import annotations
 
+import functools
+import hashlib
+import importlib.metadata
+import inspect
 import itertools
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -34,6 +39,7 @@ from typing import Any
 
 import mido
 import numpy as np
+from numpy.lib import format as npy_format
 from numpy.typing import NDArray
 from scipy import signal
 from scipy.ndimage import minimum_filter1d, uniform_filter1d
@@ -983,6 +989,340 @@ def save_plugin_state(plugin_path: str, out: Path, plugin_name: str | None = Non
 
 
 # --------------------------------------------------------------------------------------
+# Render cache and parallel plugin rendering
+# --------------------------------------------------------------------------------------
+# The cache holds each voice's RAW instrument audio: what the instrument (plugin, SoundFont or
+# engine) produced, before per-voice FX, loudness normalisation, filters, gain, automation, send
+# and mastering. Everything after that stage is cheap and runs on every render, so a mix, FX,
+# arrangement-level or mastering change re-renders no instrument, and a change to one voice's
+# notes or instrument re-renders only that voice. The key is a SHA-256 of everything that
+# affects the raw audio (see :func:`render_key`). Builtin sine voices are not cached (they render
+# in milliseconds).
+CACHE_VERSION = 2  # bump when instrument rendering changes in a way the key cannot see
+DEFAULT_CACHE_DIR = Path("output/cache")
+_ENGINE_SOURCES = ("composition.py", "synth.py", "explicit.py", "zeros.py", "config.py", "data/zeros.txt")
+
+
+_UMASK = os.umask(0o022)
+os.umask(_UMASK)
+
+
+class RenderError(RuntimeError):
+    """A voice failed to render (in this process or in a worker process)."""
+
+
+def _sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def _digest(spec: dict[str, Any]) -> str:
+    return hashlib.sha256(json.dumps(spec, sort_keys=True, default=repr).encode()).hexdigest()
+
+
+def _event_list(msgs: Sequence[Msg]) -> list[tuple[float, int, str]]:
+    """MIDI messages as plain data (s, order, bytes): keys, bends, velocities, channels, controllers."""
+    return [(float(t), int(o), bytes(m.bytes()).hex()) for t, o, m in msgs]
+
+
+def _engine_code_digest() -> str:
+    root = Path(__file__).parent
+    h = hashlib.sha256()
+    for rel in _ENGINE_SOURCES:
+        h.update(rel.encode())
+        h.update((root / rel).read_bytes())
+    return h.hexdigest()
+
+
+def _source_digest(*fns: Callable[..., Any]) -> str:
+    """Digest of the source of the functions that produce a voice's raw audio."""
+    return hashlib.sha256("\n".join(inspect.getsource(f) for f in fns).encode()).hexdigest()
+
+
+def _version(dist: str) -> str | None:
+    try:
+        return importlib.metadata.version(dist)
+    except importlib.metadata.PackageNotFoundError:
+        return None
+
+
+@functools.cache
+def _plugin_identity(path: str) -> dict[str, Any]:
+    """Identity of an installed plugin build: a bundle's Info.plist digest (it carries the version),
+    else the file's size and modification time. Sample libraries a plugin loads are not covered;
+    after a library update, render with ``--no-cache`` (or clear the cache)."""
+    p = Path(path)
+    plist = p / "Contents" / "Info.plist"
+    if plist.is_file():
+        return {"info_plist_sha256": _sha256_file(plist)}
+    if p.exists():
+        st = p.stat()
+        return {"size": st.st_size, "mtime_ns": st.st_mtime_ns}
+    return {}
+
+
+@functools.cache
+def _fluidsynth_version() -> str | None:
+    exe = shutil.which("fluidsynth")
+    if not exe:
+        return None
+    try:
+        out = subprocess.run([exe, "--version"], capture_output=True, text=True, timeout=10).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return out.strip().splitlines()[0] if out.strip() else None
+
+
+def render_key(
+    voice: VoiceSpec,
+    part: Part | None,
+    tuning: str,
+    sr: int,
+    n: int,
+    *,
+    soundfont: Path | None = None,
+    tempo: TempoMap | None = None,
+    cfg: CompositionConfig | None = None,
+) -> str:
+    """Stable cache key of one voice's raw instrument audio.
+
+    Plugin: the MIDI events actually sent (times, keys, bends, velocities, channels, controllers),
+    tuning, transpose, sample rate, length, plugin path and name, SHA-256 of the state file's
+    bytes, parameter values, load_wait and the pre-roll. SoundFont: the events, the
+    tempo map (MIDI ticks), the SoundFont's path and SHA-256. Engine: the whole composition config
+    and a digest of the engine's source files. Always: :data:`CACHE_VERSION`. Gain, send, filters,
+    FX and the voice's name are deliberately not part of the key.
+    """
+    spec: dict[str, Any] = {"salt": CACHE_VERSION, "kind": voice.kind, "sr": int(sr), "n": int(n)}
+    if voice.kind == "engine":
+        if cfg is None:
+            raise ValueError("the engine voice's key needs the composition config")
+        wrapper = _source_digest(_fit, _render_engine_raw)
+        return _digest(spec | {"config": asdict(cfg), "engine_code": _engine_code_digest(), "wrapper": wrapper})
+    if part is None:
+        raise ValueError(f"voice {voice.name!r}: no part to key")
+    msgs = part_messages(part, voice, tuning, _channels_for(voice, tuning, 0))
+    spec |= {"tuning": voice.tuning or tuning, "transpose": float(voice.transpose), "events": _event_list(msgs)}
+    if voice.kind == "plugin":
+        assert voice.target is not None
+        state = None
+        if voice.state:
+            sp = _expand(voice.state)
+            if not sp.is_file():
+                raise FileNotFoundError(f"voice {voice.name!r}: plugin state not found: {sp}")
+            state = _sha256_file(sp)
+        spec |= {
+            "plugin": str(_expand(voice.target)),
+            "plugin_name": voice.plugin_name,
+            "state_sha256": state,
+            "params": voice.params,
+            "load_wait": float(voice.load_wait),
+            "preroll": PLUGIN_PREROLL,
+            "plugin_build": _plugin_identity(str(_expand(voice.target))),
+            "renderer": {
+                "pedalboard": _version("pedalboard"),
+                "code": _source_digest(render_plugin, _load_plugin, _fit, part_messages, _channels_for),
+            },
+        }
+    elif voice.kind == "sf2":
+        if soundfont is None or tempo is None:
+            raise ValueError("a SoundFont voice's key needs the SoundFont and the tempo map")
+        if not soundfont.is_file():
+            raise FileNotFoundError(f"SoundFont not found: {soundfont}")
+        spec |= {
+            "soundfont": str(soundfont),
+            "soundfont_sha256": _sha256_file(soundfont),
+            "tempo": [list(tempo.segments), list(tempo.meter), tempo.ppq],
+            "renderer": {
+                "fluidsynth": _fluidsynth_version(),
+                "code": _source_digest(render_sf2, fluidsynth_cmd, _fit, part_messages, _channels_for),
+            },
+        }
+    else:
+        raise ValueError(f"voice {voice.name!r}: {voice.instrument} is not cached")
+    return _digest(spec)
+
+
+def _atomic_write(path: Path, write: Callable[[Any], None], mode: str = "wb") -> Path:
+    """Write via a temporary file in the same directory and a rename: readers see the old file,
+    no file, or the complete new one, never a partial write."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
+    try:
+        os.chmod(tmp, 0o666 & ~_UMASK)  # mkstemp creates 0600; give the file the usual permissions
+        with os.fdopen(fd, mode) as f:
+            write(f)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
+    return path
+
+
+def atomic_save(path: Path, audio: NDArray[np.floating[Any]]) -> Path:
+    """Save ``audio`` atomically as a float32 ``.npy`` file."""
+    data = np.ascontiguousarray(audio, dtype=np.float32)
+    return _atomic_write(path, lambda f: np.save(f, data, allow_pickle=False))
+
+
+class RenderCache:
+    """Raw voice audio on disk: ``<key>.npy`` (float32, frames x 2) plus a ``<key>.json`` note."""
+
+    def __init__(self, root: Path) -> None:
+        self.root = Path(root)
+
+    def path(self, key: str) -> Path:
+        return self.root / f"{key}.npy"
+
+    def has(self, key: str, n: int) -> bool:
+        """A complete float32 (n, 2) entry exists (checked from the header and file size, not read)."""
+        p = self.path(key)
+        try:
+            with open(p, "rb") as f:
+                version = npy_format.read_magic(f)
+                if version == (1, 0):
+                    shape, fortran, dtype = npy_format.read_array_header_1_0(f)
+                else:
+                    shape, fortran, dtype = npy_format.read_array_header_2_0(f)
+                offset = f.tell()
+        except (OSError, ValueError):
+            return False
+        ok = shape == (n, 2) and dtype == np.float32 and not fortran
+        return ok and p.stat().st_size == offset + n * 2 * 4
+
+    def load(self, key: str, n: int) -> NDArray[np.float32] | None:
+        p = self.path(key)
+        if not self.has(key, n):
+            if p.exists():
+                log.warning("ignoring incomplete or mismatched cache entry %s", p)
+            return None
+        try:
+            audio = np.load(p, allow_pickle=False)
+        except (OSError, ValueError, EOFError) as exc:
+            log.warning("ignoring unreadable cache entry %s: %s", p, exc)
+            return None
+        if audio.dtype != np.float32 or audio.shape != (n, 2):
+            log.warning("ignoring cache entry %s (dtype %s, shape %s)", p, audio.dtype, audio.shape)
+            return None
+        return audio
+
+    def store(self, key: str, audio: NDArray[np.floating[Any]]) -> Path:
+        return atomic_save(self.path(key), audio)
+
+    def describe(self, key: str, info: dict[str, Any]) -> None:
+        text = json.dumps(info, indent=1)
+        _atomic_write(self.path(key).with_suffix(".json"), lambda f: f.write(text), "w")
+
+
+# only files the cache itself writes: <sha256>.npy / <sha256>.json and their temporary files
+_CACHE_FILE = re.compile(r"\.?[0-9a-f]{64}\.(npy|json)(\..+\.tmp)?")
+
+
+def clear_cache(root: Path = DEFAULT_CACHE_DIR) -> int:
+    """Delete the cache entries under ``root`` (files named by a cache key; anything else is left
+    alone, so pointing it at the wrong directory deletes nothing); returns the number removed."""
+    root = Path(root)
+    if not root.is_dir():
+        return 0
+    removed = 0
+    for p in root.iterdir():
+        if p.is_file() and _CACHE_FILE.fullmatch(p.name):
+            p.unlink()
+            removed += 1
+    return removed
+
+
+Renderer = Callable[[Part, VoiceSpec, str, int, int], Audio]
+
+
+@dataclass(frozen=True)
+class RenderJob:
+    """One plugin voice to render into ``out``. Picklable: it crosses into a worker process, so
+    ``renderer`` must be a module-level function."""
+
+    key: str
+    voice: VoiceSpec
+    part: Part
+    tuning: str
+    sr: int
+    n: int
+    out: Path
+    renderer: Renderer
+
+
+def run_job(job: RenderJob) -> Path:
+    """Render one job and save its audio atomically; any failure becomes a :class:`RenderError`."""
+    try:
+        return atomic_save(job.out, _fit(job.renderer(job.part, job.voice, job.tuning, job.sr, job.n), job.n))
+    except RenderError:
+        raise
+    except Exception as exc:  # e.g. a plugin that fails to load; the message must pickle back from a worker
+        raise RenderError(
+            f"rendering voice {job.voice.name!r} with {job.voice.instrument} failed: {type(exc).__name__}: {exc}"
+        ) from None
+
+
+def default_jobs(n_plugin_jobs: int) -> int:
+    """min(plugin voices to render, half the CPUs, 4), at least 1."""
+    return max(1, min(n_plugin_jobs, (os.cpu_count() or 2) // 2, 4))
+
+
+def render_jobs(jobs: Sequence[RenderJob], workers: int, local: Sequence[Callable[[], None]] = ()) -> None:
+    """Render plugin ``jobs`` in up to ``workers`` separate processes and the ``local`` callables here.
+
+    Workers use the "spawn" start method and one job per process, so each loads its own plugin in a
+    fresh process. Jobs with the most notes start first. Every job is a pure function of its inputs
+    and writes its own file, so for a deterministic instrument the result does not depend on the
+    number of workers or the order of completion (plugins with free-running oscillators or round-robin
+    samples differ between any two renders, cached or not). The first failure stops the other workers
+    and is raised as :class:`RenderError` naming the voice.
+    """
+    jobs = sorted(jobs, key=lambda j: -len(j.part.notes))
+    if workers <= 1 or len(jobs) <= 1:
+        for j in jobs:
+            log.info("rendering %s with %s", j.voice.name, j.voice.instrument)
+            run_job(j)
+        for fn in local:
+            fn()
+        return
+    import multiprocessing
+    from concurrent.futures import ProcessPoolExecutor, as_completed
+    from concurrent.futures.process import BrokenProcessPool
+
+    workers = min(workers, len(jobs))
+    log.info("rendering %d plugin voices in %d processes", len(jobs), workers)
+    ex = ProcessPoolExecutor(workers, mp_context=multiprocessing.get_context("spawn"), max_tasks_per_child=1)
+    futures: dict[Any, RenderJob] = {}
+    try:
+        futures = {ex.submit(run_job, j): j for j in jobs}
+        for fn in local:
+            fn()
+        for fut in as_completed(futures):
+            j = futures[fut]
+            try:
+                fut.result()
+            except BrokenProcessPool:
+                raise RenderError(
+                    f"the process rendering voice {j.voice.name!r} with {j.voice.instrument} stopped unexpectedly"
+                ) from None
+            log.info("rendered %s", j.voice.name)
+    except BaseException:
+        for f in futures:
+            f.cancel()
+        # do not wait for a slow plugin render whose result is no longer needed
+        for p in list((getattr(ex, "_processes", None) or {}).values()):
+            p.terminate()
+        ex.shutdown(wait=True, cancel_futures=True)
+        raise
+    ex.shutdown(wait=True)
+
+
+# --------------------------------------------------------------------------------------
 # Mix and master DSP
 # --------------------------------------------------------------------------------------
 def lufs_gain_db(measured_lufs: float, target_lufs: float) -> float:
@@ -1261,16 +1601,23 @@ def produce(
     audio: bool = True,
     name: str | None = None,
     stem_format: str = "flac",
+    cache_dir: Path | None = DEFAULT_CACHE_DIR,
+    jobs: int | None = None,
 ) -> dict[str, Any]:
     """Build MIDI (just, tempered, tempered + quantised), stems and masters for a produced score.
 
     Masters are 24-bit WAV (+ 256 kb/s AAC). Stems (24-bit, ``flac`` by default: lossless and a
     fraction of the size, since most stems are silent much of the time) are written for the first
     tuning only; they share one gain, so summing them reproduces the pre-master mix.
+
+    Each voice's raw instrument audio is cached in ``cache_dir`` (``None``: no persistent cache)
+    and reused while its key is unchanged (see :func:`render_key`). Plugin voices missing from the
+    cache render in up to ``jobs`` worker processes (default :func:`default_jobs`).
     """
     if stem_format not in ("flac", "wav"):
         raise ValueError("stem_format must be 'flac' or 'wav'")
-    import soundfile as sf
+    if jobs is not None and jobs < 1:
+        raise ValueError("jobs must be >= 1")
 
     from .composition import analyse, render
 
@@ -1312,18 +1659,127 @@ def produce(
     n = int((cfg.duration + prod.tail) * sr)
     sf2_default = soundfont or os.environ.get("ZETA_SOUNDFONT") or prod.soundfont
     automation = _section_gain_curve(cfg, prod, None, sr, n)[:, None]
-    zeros_raw: NDArray[np.float32] | None = None
-    if "zeros" in prod.voices:  # the same for every tuning: render once, keep one float32 buffer
-        log.info("rendering the engine's zero drone, breath and pole")
-        engine = render(cfg, stems=True).stems
-        assert engine is not None
-        zeros_raw = np.zeros((n, 2), dtype=np.float32)
-        for k in ("drone", "breath", "pole"):
-            a_ = engine.pop(k)[:n]
-            zeros_raw[: a_.shape[0]] += a_.astype(np.float32)
-            del a_
-        del engine
-        zeros_raw *= _section_gain_curve(cfg, prod, "zeros", sr, n)[:, None]
+    zeros_curve = _section_gain_curve(cfg, prod, "zeros", sr, n)[:, None] if "zeros" in prod.voices else None
+    tmp_ctx = tempfile.TemporaryDirectory()
+    tmp = Path(tmp_ctx.name)
+    try:
+        # without a cache directory the entries live in a temporary one for this run only (a voice
+        # that sounds the same in both tunings is still rendered once)
+        cache = RenderCache(cache_dir if cache_dir is not None else tmp / "cache")
+        keys, render_info = _render_voices(cfg, prod, parts, tunings, sr, n, sf2_default, cache, jobs, tmp, render)
+        render_info["cache_dir"] = str(cache_dir) if cache_dir is not None else None
+        meta["render"] = render_info
+        reports = _mix_and_master(
+            cfg, prod, parts, tunings, sr, n, keys, cache, automation, zeros_curve, out_dir, stem, stem_format, paths
+        )
+    finally:
+        tmp_ctx.cleanup()
+    meta |= {"paths": paths, "reports": reports, "soundfont": str(_expand(sf2_default)) if sf2_default else None}
+    (out_dir / f"{stem}.produce.json").write_text(json.dumps(meta, indent=1))
+    return meta
+
+
+def _render_engine_raw(render: Callable[..., Any], cfg: CompositionConfig, n: int) -> NDArray[np.float32]:
+    """The engine's zero drone, breath and pole summed into one float32 buffer (before the zeros level)."""
+    log.info("rendering the engine's zero drone, breath and pole")
+    engine = render(cfg, stems=True).stems
+    assert engine is not None
+    out = np.zeros((n, 2), dtype=np.float32)
+    for k in ("drone", "breath", "pole"):
+        a_ = engine.pop(k)[:n]
+        out[: a_.shape[0]] += a_.astype(np.float32)
+        del a_
+    return out
+
+
+def _render_voices(
+    cfg: CompositionConfig,
+    prod: ProduceConfig,
+    parts: dict[str, Part],
+    tunings: Sequence[str],
+    sr: int,
+    n: int,
+    sf2_default: str | None,
+    cache: RenderCache,
+    jobs: int | None,
+    tmp: Path,
+    render: Callable[..., Any],
+) -> tuple[dict[tuple[str, str], str], dict[str, Any]]:
+    """Key every (tuning, voice), render what the cache lacks (plugins in parallel), return the keys."""
+    tempo = prod.tempo
+    keys: dict[tuple[str, str], str] = {}
+    labels: dict[str, list[str]] = {}
+    plugin_jobs: dict[str, RenderJob] = {}
+    local: dict[str, Callable[[], None]] = {}
+    hits: set[str] = set()
+
+    def store(key: str, make: Callable[[], Audio | NDArray[np.float32]]) -> None:
+        cache.store(key, _fit(make(), n))
+
+    for tuning in tunings:
+        for vname, voice in prod.voices.items():
+            if voice.kind == "builtin":
+                continue
+            sf2: Path | None = None
+            if voice.kind == "sf2":
+                name_ = voice.target or sf2_default
+                if not name_:
+                    raise ValueError(f"voice {vname!r}: no SoundFont (set [produce] soundfont or --soundfont)")
+                sf2 = _expand(name_)
+            part = parts.get(vname)
+            key = render_key(voice, part, tuning, sr, n, soundfont=sf2, tempo=tempo, cfg=cfg)
+            keys[(tuning, vname)] = key
+            labels.setdefault(key, []).append(f"{tuning}:{vname}")
+            if key in plugin_jobs or key in local or key in hits:
+                continue
+            if cache.has(key, n):
+                hits.add(key)
+            elif voice.kind == "plugin":
+                assert part is not None
+                plugin_jobs[key] = RenderJob(key, voice, part, tuning, sr, n, cache.path(key), render_plugin)
+            elif voice.kind == "sf2":
+                assert part is not None and sf2 is not None
+                work = tmp / key
+                work.mkdir()
+                fn = functools.partial(render_sf2, sf2, part, voice, tuning, tempo, sr, n, work)
+                local[key] = functools.partial(store, key, fn)
+            else:
+                local[key] = functools.partial(store, key, functools.partial(_render_engine_raw, render, cfg, n))
+    workers = jobs if jobs is not None else default_jobs(len(plugin_jobs))
+    if workers < 1:
+        raise ValueError("jobs must be >= 1")
+    rendered = [*plugin_jobs, *local]
+    log.info("render cache %s: %d voices cached, %d to render", cache.root, len(hits), len(rendered))
+    render_jobs(list(plugin_jobs.values()), workers, list(local.values()))
+    for key in rendered:
+        cache.describe(key, {"voices": labels[key], "cache_version": CACHE_VERSION})
+    info = {
+        "workers": workers,
+        "rendered": sorted(lbl for k in rendered for lbl in labels[k]),
+        "from_cache": sorted(lbl for k in hits for lbl in labels[k]),
+    }
+    return keys, info
+
+
+def _mix_and_master(
+    cfg: CompositionConfig,
+    prod: ProduceConfig,
+    parts: dict[str, Part],
+    tunings: Sequence[str],
+    sr: int,
+    n: int,
+    keys: dict[tuple[str, str], str],
+    cache: RenderCache,
+    automation: NDArray[np.float32],
+    zeros_curve: NDArray[np.float32] | None,
+    out_dir: Path,
+    stem: str,
+    stem_format: str,
+    paths: dict[str, str],
+) -> dict[str, Any]:
+    """Per-voice FX and mix from the raw voice audio, reverb send, master, stems and reports."""
+    import soundfile as sf
+
     reports: dict[str, Any] = {}
     stem_ceiling = 10 ** (-1.0 / 20)  # no stem file (and not their sum) above -1 dBFS
     for tuning in tunings:
@@ -1331,32 +1787,29 @@ def produce(
         stems: dict[str, NDArray[np.float32]] = {}
         send = np.zeros((n, 2), dtype=np.float32)
         mix = np.zeros((n, 2), dtype=np.float32)
-        with tempfile.TemporaryDirectory() as tmp:
-            for vname, voice in prod.voices.items():
-                log.info("[%s] rendering %s with %s", tuning, vname, voice.instrument)
+        for vname, voice in prod.voices.items():
+            if voice.kind == "builtin":
+                raw = render_sine(parts[vname], sr, n, voice.tuning or tuning, voice.transpose)
+            else:
+                cached = cache.load(keys[(tuning, vname)], n)
+                if cached is None:
+                    raise RuntimeError(f"voice {vname!r}: rendered audio missing from {cache.root}")
                 if voice.kind == "engine":
-                    assert zeros_raw is not None
-                    raw = zeros_raw.astype(np.float64)
-                elif voice.kind == "sf2":
-                    sf2 = voice.target or sf2_default
-                    if not sf2:
-                        raise ValueError(f"voice {vname!r}: no SoundFont (set [produce] soundfont or --soundfont)")
-                    raw = render_sf2(_expand(sf2), parts[vname], voice, tuning, tempo, sr, n, Path(tmp))
-                elif voice.kind == "plugin":
-                    raw = render_plugin(parts[vname], voice, tuning, sr, n)
-                else:
-                    raw = render_sine(parts[vname], sr, n, voice.tuning or tuning, voice.transpose)
-                raw = apply_fx(raw, sr, voice.fx) if voice.fx else raw
-                rms = _active_rms(raw, sr)
-                norm = (10 ** (-20 / 20)) / rms if rms > 0 else 0.0  # every voice to -20 dBFS active RMS
-                out = _filter(raw * norm, sr, voice).astype(np.float32)
-                del raw
-                out *= np.float32(10 ** (voice.gain_db / 20))
-                out *= automation
-                stems[vname] = out
-                mix += out
-                if voice.send > 0:
-                    send += out * np.float32(voice.send)
+                    assert zeros_curve is not None
+                    cached *= zeros_curve
+                raw = cached.astype(np.float64)
+                del cached
+            raw = apply_fx(raw, sr, voice.fx) if voice.fx else raw
+            rms = _active_rms(raw, sr)
+            norm = (10 ** (-20 / 20)) / rms if rms > 0 else 0.0  # every voice to -20 dBFS active RMS
+            out = _filter(raw * norm, sr, voice).astype(np.float32)
+            del raw
+            out *= np.float32(10 ** (voice.gain_db / 20))
+            out *= automation
+            stems[vname] = out
+            mix += out
+            if voice.send > 0:
+                send += out * np.float32(voice.send)
         if np.any(send):
             wet = synth.reverb(
                 send,
@@ -1415,9 +1868,7 @@ def produce(
             sections[nme] = round(lu, 1) if np.isfinite(lu) else None
         reports[tuning] = {"master": loud, "master_spectrum": _band_report(master, sr), "section_lufs": sections}
         reports[tuning]["stems"] = stem_stats
-    meta |= {"paths": paths, "reports": reports, "soundfont": str(_expand(sf2_default)) if sf2_default else None}
-    (out_dir / f"{stem}.produce.json").write_text(json.dumps(meta, indent=1))
-    return meta
+    return reports
 
 
 def _encode_m4a(wav: Path) -> Path | None:
