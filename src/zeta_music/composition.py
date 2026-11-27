@@ -332,6 +332,12 @@ def _render_drone(cfg: CompositionConfig, tl: Timeline, gammas: FloatArray, n_au
     return out
 
 
+def _unit(note: FloatArray) -> FloatArray:
+    """Scale a note to unit peak so its level in the mix is exactly its event gain (salience)."""
+    peak = float(np.max(np.abs(note)))
+    return note / peak if peak > 0 else note
+
+
 def _render_notes(
     cfg: CompositionConfig, tl: Timeline, events: list[Event], n_audio: int
 ) -> tuple[FloatArray, FloatArray]:
@@ -346,13 +352,13 @@ def _render_notes(
             continue
         start = int(e.time * sr)
         if e.kind == "prime":
-            note = synth.pluck(e.freq, 3.0, sr, rng, brightness=0.65, t60=2.8)
+            note = _unit(synth.pluck(e.freq, 3.0, sr, rng, brightness=0.65, t60=2.8))
             synth.add_at(plucks, synth.pan_equal_power(note * gain, e.pan), start)
         elif e.kind == "prime_power":
-            note = synth.bell(e.freq * 2.0, 3.5, sr, t60=3.0)
+            note = _unit(synth.bell(e.freq * 2.0, 3.5, sr, t60=3.0))
             synth.add_at(bells, synth.pan_equal_power(note * gain, -e.pan), start)
         else:  # ghost: dull, short, quieter pluck at the (microtonal) peak pitch
-            note = synth.pluck(e.freq, 1.2, sr, rng, brightness=0.25, t60=0.8)
+            note = _unit(synth.pluck(e.freq, 1.2, sr, rng, brightness=0.25, t60=0.8))
             synth.add_at(plucks, synth.pan_equal_power(note * gain * 0.55, e.pan), start)
     return plucks, bells
 
@@ -417,8 +423,9 @@ def render(cfg: CompositionConfig) -> RenderResult:
 
     mix = (
         synth.db_to_amp(m.drone_db) * norm(drone)
-        + synth.db_to_amp(m.pluck_db) * norm(plucks)
-        + synth.db_to_amp(m.bell_db) * norm(bells)
+        # plucks and bells share ONE gain so salience (1 at primes, 1/k at p^k) survives the mix;
+        # bell_db is applied relative to pluck_db
+        + synth.db_to_amp(m.pluck_db) * norm(plucks + synth.db_to_amp(m.bell_db - m.pluck_db) * bells)
         + synth.db_to_amp(m.breath_db) * norm(breath)
         + synth.db_to_amp(m.pole_db) * norm(pole)
     )

@@ -125,3 +125,19 @@ def test_descending_sweep_finds_primes():
     sal = salience_curve(tl.x, tl.n_zeros, load_zeros(150))
     primes = [e.nearest for e in detect_events(tl, sal, cfg) if e.kind == "prime"]
     assert primes == [29, 23, 19, 17, 13, 11, 7, 5, 3, 2]
+
+
+def test_note_level_follows_salience(tiny_config):
+    """Regression : a p^2 bell must be half the level of a prime pluck at equal mix gain."""
+    from zeta_music.composition import Event, _render_notes
+
+    tl = build_timeline(tiny_config)
+    sr = tiny_config.sample_rate
+    evs = [
+        Event(4.0, 5.0, 1.0, 5, "prime", 50.0, 245.0, 0.0),  # away from the gain ramp at t=2
+        Event(5.0, 9.0, 0.5, 9, "prime_power", 50.0, 220.0, 0.0),
+    ]
+    plucks, bells = _render_notes(tiny_config, tl, evs, int(8 * sr))
+    pan0 = np.cos(np.pi / 4)
+    assert np.max(np.abs(plucks)) == pytest.approx(1.0 * pan0, rel=2e-3)
+    assert np.max(np.abs(bells)) == pytest.approx(0.5 * pan0, rel=2e-3)

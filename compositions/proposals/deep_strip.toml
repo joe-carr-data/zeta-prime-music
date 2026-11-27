@@ -80,7 +80,7 @@ drone_gain = 0.8
 [mix]
 drone_db = -9.0
 pluck_db = -5.0
-bell_db = -13.0
+bell_db = -9.0   # 4 dB under a pluck at equal salience; salience adds the 1/k cue
 breath_db = -28.0
 pole_db = -21.0
 reverb_mix = 0.38

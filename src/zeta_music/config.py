@@ -51,7 +51,7 @@ class Section:
 class MixConfig:
     drone_db: float = -12.0
     pluck_db: float = -6.0
-    bell_db: float = -14.0
+    bell_db: float = -9.0  # a unit-salience bell sits (bell_db - pluck_db) below a unit pluck
     breath_db: float = -26.0
     pole_db: float = -20.0
     reverb_mix: float = 0.22
