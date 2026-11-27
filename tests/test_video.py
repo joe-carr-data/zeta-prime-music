@@ -15,7 +15,7 @@ def test_window_loop_and_sliding(tiny_config):
 
 @pytest.mark.parametrize(("dur", "fps", "expected"), [(0.1, 5, 1), (1.3, 5, 7), (2.0, 5, 10), (1e-6, 30, 1)])
 def test_frame_count_covers_partial_frames(dur, fps, expected):
-    """Regression : int(dur*fps) gave 0 frames for sub-frame clips and dropped partial frames."""
+    """Regression: int(dur*fps) gave 0 frames for sub-frame clips and dropped partial frames."""
     assert frame_count(dur, fps) == expected
 
 
@@ -69,7 +69,7 @@ def test_render_video_rejects_bad_ranges(tiny_config, tiny_wav, tmp_path):
 
 @needs_ffmpeg
 def test_encoder_early_exit_is_a_runtime_error(tiny_config, tiny_wav, tmp_path, monkeypatch):
-    """Regression : an encoder that dies used to leak BrokenPipeError past the CLI."""
+    """Regression: an encoder that dies used to leak BrokenPipeError past the CLI."""
     monkeypatch.setattr(video, "_ffmpeg_cmd", lambda *a, **k: ["sh", "-c", "echo boom >&2; exit 3"])
     with pytest.raises(RuntimeError, match=r"exit 3.*boom"):
         render_video(tiny_config, tiny_wav, tmp_path / "x.mp4", VideoSpec(fps=5, start=4.0, end=5.0))
@@ -77,7 +77,7 @@ def test_encoder_early_exit_is_a_runtime_error(tiny_config, tiny_wav, tmp_path, 
 
 @needs_ffmpeg
 def test_clip_audio_comes_from_the_requested_interval(tiny_config, tiny_wav, tmp_path):
-    """review: the clip's audio must be the source's [start, end), not just any audio."""
+    """Regression: the clip's audio must be the source's [start, end), not just any audio."""
     import subprocess
 
     import soundfile as sf
@@ -103,7 +103,7 @@ def test_clip_audio_comes_from_the_requested_interval(tiny_config, tiny_wav, tmp
 
 
 def test_sliding_window_follows_direction_and_stays_in_section():
-    """review V2: long sweeps slide with the direction of travel and never leave the section."""
+    """long sweeps slide with the direction of travel and never leave the section."""
     from zeta_music.config import CompositionConfig, Section
 
     cfg = CompositionConfig(

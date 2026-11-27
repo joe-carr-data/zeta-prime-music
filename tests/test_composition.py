@@ -51,7 +51,7 @@ def test_fold_and_pitch():
 
 
 def test_pitch_is_continuous_across_powers_of_two():
-    """Regression : x=1.9998 and x=2.0005 must not be an octave apart."""
+    """Regression: x=1.9998 and x=2.0005 must not be an octave apart."""
     lo, hi = event_pitch(1.9998, 98.0), event_pitch(2.0005, 98.0)
     assert abs(1200 * np.log2(hi / lo)) < 1.0  # cents
     for n in (4, 8, 16, 32):
@@ -77,7 +77,7 @@ def test_shipped_score_parses():
 
 
 def test_salience_is_bounded_while_first_zero_fades_in():
-    """Regression : N -> 0 used to give -3.9e10 at x = 1.2."""
+    """Regression: N -> 0 used to give -3.9e10 at x = 1.2."""
     g = load_zeros(5)
     x = np.full(5, 1.2)
     n = np.array([0.0, 1e-6, 0.1, 0.5, 1.0])
@@ -101,7 +101,7 @@ def test_salience_full_scale_at_one_zero(taper):
 
 
 def test_pan_is_continuous_across_powers_of_two():
-    """Regression : stereo position must not flip as a peak converges on n."""
+    """Regression: stereo position must not flip as a peak converges on n."""
     for n in (2, 4, 8, 16):
         assert event_pan(n - 0.01) == event_pan(n + 0.01) == event_pan(float(n))
 
@@ -114,7 +114,7 @@ def test_segments_mark_sections_and_loops(tiny_config):
 
 
 def test_descending_sweep_finds_primes():
-    """Regression : a sweep running down the number line used to lose every note."""
+    """Regression: a sweep running down the number line used to lose every note."""
     from zeta_music.config import CompositionConfig, Section
 
     cfg = CompositionConfig(
@@ -128,7 +128,7 @@ def test_descending_sweep_finds_primes():
 
 
 def test_note_level_follows_salience(tiny_config):
-    """Regression : a p^2 bell must be half the level of a prime pluck at equal mix gain."""
+    """Regression: a p^2 bell must be half the level of a prime pluck at equal mix gain."""
     from zeta_music.composition import Event, _render_notes
 
     tl = build_timeline(tiny_config)
@@ -144,7 +144,7 @@ def test_note_level_follows_salience(tiny_config):
 
 
 def test_muted_section_never_sounds():
-    """Regression : the smoothed gain rises before an unmute and leaked notes into a muted section."""
+    """Regression: the smoothed gain rises before an unmute and leaked notes into a muted section."""
     from zeta_music.composition import analyse
     from zeta_music.config import CompositionConfig, Section
 
@@ -162,7 +162,7 @@ def test_muted_section_never_sounds():
 
 @pytest.mark.parametrize("loop", [0.1, 0.3, 0.7, 1.1])
 def test_decimal_loops_wrap_exactly_at_segment_boundaries(loop):
-    """Regression : floor(u/loop) and mod(u, loop) disagreed, putting the wrap inside a bar."""
+    """Regression: floor(u/loop) and mod(u, loop) disagreed, putting the wrap inside a bar."""
     from zeta_music.config import CompositionConfig, Section
 
     cfg = CompositionConfig(
@@ -179,7 +179,7 @@ def test_decimal_loops_wrap_exactly_at_segment_boundaries(loop):
 
 
 def test_mix_notes_keeps_salience_and_mutes_cleanly():
-    """Regression : stem normalisation at the mix stage erased 1/k; -inf dB made NaNs."""
+    """Regression: stem normalisation at the mix stage erased 1/k; -inf dB made NaNs."""
     from zeta_music.composition import mix_notes
 
     plucks = np.zeros((100, 2))
@@ -195,7 +195,7 @@ def test_mix_notes_keeps_salience_and_mutes_cleanly():
 
 
 def test_quiet_section_is_not_muted():
-    """Regression : pluck_gain=0.01 was treated as muted."""
+    """Regression: pluck_gain=0.01 was treated as muted."""
     from zeta_music.composition import analyse
     from zeta_music.config import CompositionConfig, Section
 
@@ -222,7 +222,7 @@ def test_mix_notes_inplace_matches_copy():
     [(2, 30, (0.95, 1.03)), (30, 100, (0.88, 0.96)), (100, 180, (0.76, 0.86)), (180, 260, (0.70, 0.78))],
 )
 def test_salience_far_field_matches_documented_values(lo, hi, median_range):
-    """review C5: S(n) -> Lambda(n)/log n is a fixed-n limit; with 500 zeros far primes are softer (documented)."""
+    """S(n) -> Lambda(n)/log n is a fixed-n limit; with 500 zeros far primes are softer (documented)."""
     from zeta_music.explicit import primes_upto
 
     x = np.array([p for p in primes_upto(hi) if p >= lo], dtype=float)

@@ -1,6 +1,6 @@
-# Prompt for a literature survey
+# Research brief
 
-Copy everything in the block below.
+A brief for a literature and technique survey to inform the next version of the piece.
 
 ```
 I'm building an algorithmic music composition based on the Riemann zeta function, specifically the
@@ -45,5 +45,5 @@ Please research and write a structured report (with citations) covering:
 Be rigorous: separate verified mathematical facts from aesthetic opinion, and give sources.
 ```
 
-Drop the resulting report into `docs/research/` and the autonomous loop will pick up
-recommendations from it.
+Put the resulting report in `docs/research/`; its recommendations feed the backlog in
+`docs/PROGRESS.md`.

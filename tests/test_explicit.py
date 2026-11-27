@@ -74,7 +74,7 @@ def test_taper_weights(kind):
 
 
 def test_spike_density_layout_independent():
-    """Regression : Fortran-ordered input used to return uninitialised memory."""
+    """Regression: Fortran-ordered input used to return uninitialised memory."""
     g = load_zeros(20)
     a = np.array([[2.0, 3.0, 4.5], [5.0, 7.0, 9.5]])
     expected = np.array([[spike_density([v], g)[0] for v in row] for row in a])

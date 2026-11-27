@@ -35,7 +35,7 @@ def _fundamental_t60(y, freq, sr):
 
 @pytest.mark.parametrize("freq", [98.0, 392.0, 784.0, 1175.0, 1568.0])
 def test_pluck_decay_matches_t60(freq):
-    """Regression : loop-filter loss made high notes die early (1568 Hz: 0.33 s for t60=2.5 s)."""
+    """Regression: loop-filter loss made high notes die early (1568 Hz: 0.33 s for t60=2.5 s)."""
     sr = 44100
     y = synth.pluck(freq, 3.0, sr, np.random.default_rng(1), t60=2.5)
     assert _fundamental_t60(y, freq, sr) == pytest.approx(2.5, rel=0.1)
@@ -126,7 +126,7 @@ SECTION = 'name="a"\nduration=1\nx_start=2\nx_end=3\nzeros_start=1\nzeros_end=2\
     ],
 )
 def test_config_errors_name_the_toml_field(tmp_path, toml, match):
-    """review C9: invalid scores fail at load time with the offending TOML location."""
+    """invalid scores fail at load time with the offending TOML location."""
     p = tmp_path / "c.toml"
     p.write_text(toml)
     with pytest.raises(ValueError, match=match):
@@ -140,7 +140,7 @@ def test_minus_inf_mutes_a_voice(tmp_path):
 
 
 def test_low_sample_rate_scores_are_playable(tmp_path):
-    """review: validation must not reject playable 8 kHz scores (partials are capped instead)."""
+    """Regression: validation must not reject playable 8 kHz scores (partials are capped instead)."""
     p = tmp_path / "c.toml"
     p.write_text('title="t"\nsample_rate=8000\ndrone_base_hz=440\n[[sections]]\n' + SECTION)
     cfg = load_config(p)  # default drone_max_hz 6000 > Nyquist is fine: capped at render
@@ -161,7 +161,7 @@ def _ev(t, freq=220.0, kind="prime"):
 
 
 def test_midi_channels_never_shared_while_sounding():
-    """review C8: round-robin reused channels with pending note-offs (retuned / cut notes)."""
+    """round-robin reused channels with pending note-offs (retuned / cut notes)."""
     from zeta_music.midi import CHANNELS, allocate_channels
 
     events = [_ev(0.05 * i, 200.0 + i) for i in range(40)]  # 40 overlapping 1.5 s notes
@@ -185,14 +185,14 @@ def test_midi_sparse_notes_keep_full_length():
 
 
 def test_oversampling_factor_is_monotonic_in_pitch():
-    """review: the factor used to flicker between neighbouring pitches (timbre jumps)."""
+    """Regression: the factor used to flicker between neighbouring pitches (timbre jumps)."""
     factors = [synth.oversampling_factor(f, 44100, 2.8) for f in np.arange(100.0, 2500.0, 0.5)]
     assert factors == sorted(factors)
     assert set(factors) == {1, 2, 4, 8}  # 44.1 kHz never exceeds 8x (384 kHz cap)
 
 
 def test_non_latin_title_exports_midi(tiny_config, tmp_path):
-    """review: a title like 'ζ' crashed MIDI export after the WAV was written."""
+    """Regression: a title like 'ζ' crashed MIDI export after the WAV was written."""
     import dataclasses
 
     import mido
@@ -214,7 +214,7 @@ def test_small_zero_counts_give_clear_errors():
 
 @pytest.mark.parametrize(("sr", "freq"), [(8000, 1568.0), (8000, 784.0), (16000, 1568.0)])
 def test_pluck_decay_at_low_sample_rates(sr, freq):
-    """review (P1): at 8 kHz the old 8x cap gave t60 = 0.79 s for a 2.5 s request at 1568 Hz."""
+    """Regression: at 8 kHz the old 8x cap gave t60 = 0.79 s for a 2.5 s request at 1568 Hz."""
     y = synth.pluck(freq, 3.0, sr, np.random.default_rng(1), t60=2.5)
     assert _fundamental_t60(y, freq, sr) == pytest.approx(2.5, rel=0.1)
 
@@ -222,5 +222,5 @@ def test_pluck_decay_at_low_sample_rates(sr, freq):
 @pytest.mark.parametrize("sr", [8000, 11025, 16000, 22050, 44100, 48000])
 @pytest.mark.parametrize("freq", [500.0, 1568.0, 2500.0, 3500.0])
 def test_oversampling_never_exceeds_internal_rate_cap(sr, freq):
-    """review: 8 kHz / 2.5 kHz used to pick 64x (512 kHz) despite the 384 kHz cap."""
+    """Regression: 8 kHz / 2.5 kHz used to pick 64x (512 kHz) despite the 384 kHz cap."""
     assert sr * synth.oversampling_factor(freq, sr, 2.8) <= synth.MAX_INTERNAL_RATE
