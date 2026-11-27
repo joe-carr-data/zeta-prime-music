@@ -90,6 +90,8 @@ class MixConfig:
             if isinstance(v, bool) or not isinstance(v, int | float) or math.isnan(v) or v == math.inf:
                 raise ValueError(f"{key} must be a number or -inf, got {v!r}")
         _finite(self, "reverb_mix", "reverb_t60", "peak_db")
+        if self.reverb_t60 < 0.05:
+            raise ValueError("reverb_t60 must be >= 0.05 s")
         if not 0.0 <= self.reverb_mix <= 1.0:
             raise ValueError("reverb_mix must be in [0, 1]")
         if self.reverb_t60 <= 0:
@@ -125,12 +127,24 @@ class CompositionConfig:
             raise ValueError("sample_rate must be >= 8000 Hz (the breath band needs 250-2500 Hz)")
         _finite(self, "drone_base_hz", "drone_exponent", "drone_max_hz", "drone_tremolo", "pluck_base_hz")
         _finite(self, "peak_prominence")
-        nyquist = self.sample_rate / 2
+        # Frequencies above ~0.45*sample_rate are skipped at render time (never aliased), so only the
+        # fundamentals themselves must be representable.
         for key in ("drone_base_hz", "pluck_base_hz"):
-            if not 0 < getattr(self, key) < nyquist / 16:
-                raise ValueError(f"{key} must be in (0, {nyquist / 16:.0f}) Hz at sample_rate {self.sample_rate}")
-        if not 0 < self.drone_max_hz < nyquist:
-            raise ValueError(f"drone_max_hz must be in (0, {nyquist:.0f}) Hz (Nyquist)")
+            if not 0 < getattr(self, key) < 0.45 * self.sample_rate:
+                raise ValueError(
+                    f"{key} must be in (0, {0.45 * self.sample_rate:.0f}) Hz at sample_rate {self.sample_rate}"
+                )
+        if self.drone_max_hz <= 0:
+            raise ValueError("drone_max_hz must be > 0 (partials above 0.45*sample_rate are dropped anyway)")
+        if isinstance(self.seed, bool) or not isinstance(self.seed, int) or self.seed < 0:
+            raise ValueError(f"seed must be a non-negative integer, got {self.seed!r}")
+        for i, sec in enumerate(self.sections):
+            if round(sec.duration * self.control_rate) < 2:
+                raise ValueError(
+                    f"sections[{i}] ({sec.name!r}): duration {sec.duration} s is shorter than 2 control frames"
+                )
+            if sec.loop is not None and sec.loop * self.control_rate < 2:
+                raise ValueError(f"sections[{i}] ({sec.name!r}): loop {sec.loop} s is shorter than 2 control frames")
         if self.drone_exponent <= 0:
             raise ValueError("drone_exponent must be > 0")
         if not 0.0 <= self.drone_tremolo <= 1.0:

@@ -174,7 +174,7 @@ def salience_curve(
         return np.zeros_like(x, dtype=np.float64)
     k = np.arange(g.size, dtype=np.float64)
     if chunk is None:  # ~16 MB per (zeros x chunk) float64 temporary, whatever the zero count
-        chunk = max(256, (16 << 20) // (8 * g.size))
+        chunk = max(16, (16 << 20) // (8 * g.size))
     spacing = 2 * np.pi / np.log(g / (2 * np.pi))
     # floor = bandwidth of exactly one fully present (tapered) zero, so N=1 keeps full scale
     i_w_one = float(spacing[0] * _zero_weights(k[:1], np.ones(1), taper)[0, 0])
@@ -315,7 +315,7 @@ def _render_drone(cfg: CompositionConfig, tl: Timeline, gammas: FloatArray, n_au
     partials: list[tuple[int, float, float, float]] = []  # (k, freq, weight, pan) — scalars only
     for k, g in enumerate(gammas):
         f = cfg.drone_base_hz * (g / gammas[0]) ** cfg.drone_exponent
-        if f > cfg.drone_max_hz:
+        if f > min(cfg.drone_max_hz, 0.45 * cfg.sample_rate):  # never alias
             break
         presence = presence_of(k)
         if not presence.any():
@@ -358,12 +358,16 @@ def _render_notes(
     rng = np.random.default_rng(cfg.seed + 2)
     plucks = np.zeros((n_audio, 2))
     bells = np.zeros((n_audio, 2))
+    skipped = 0
     for e in events:
         j = min(int(e.time * tl.rate), tl.t.size - 1)
         gain = float(tl.pluck_gain[j]) * float(np.clip(e.salience, 0.0, 1.3))
         if gain <= 1e-4:
             continue
         start = int(e.time * sr)
+        if e.freq * (2.0 if e.kind == "prime_power" else 1.0) >= 0.45 * sr:
+            skipped += 1  # would alias at this sample rate
+            continue
         if e.kind == "prime":
             note = _unit(synth.pluck(e.freq, 3.0, sr, rng, brightness=0.65, t60=2.8))
             synth.add_at(plucks, synth.pan_equal_power(note * gain, e.pan), start)
@@ -373,18 +377,31 @@ def _render_notes(
         else:  # ghost: dull, short, quieter pluck at the (microtonal) peak pitch
             note = _unit(synth.pluck(e.freq, 1.2, sr, rng, brightness=0.25, t60=0.8))
             synth.add_at(plucks, synth.pan_equal_power(note * gain * 0.55, e.pan), start)
+    if skipped:
+        log.warning("%d notes above 0.45*sample_rate skipped (raise sample_rate or lower pluck_base_hz)", skipped)
     return plucks, bells
 
 
-def mix_notes(plucks: FloatArray, bells: FloatArray, pluck_db: float, bell_db: float) -> FloatArray:
+def mix_notes(
+    plucks: FloatArray, bells: FloatArray, pluck_db: float, bell_db: float, out: FloatArray | None = None
+) -> FloatArray:
     """Note voices are NOT peak-normalised: every note already has unit peak x salience, so a
     unit-salience pluck lands at ``pluck_db`` and a unit-salience bell at ``bell_db`` (prime powers
-    keep their 1/k level). ``-inf`` dB mutes a voice cleanly (no inf/NaN arithmetic)."""
-    out = np.zeros_like(plucks)
+    keep their 1/k level). ``-inf`` dB mutes a voice cleanly (no inf/NaN arithmetic).
+
+    With ``out`` given, the stems are scaled IN PLACE and accumulated into ``out`` (no extra
+    full-length buffers); without it, inputs are left untouched and a new array is returned.
+    """
+    inplace = out is not None
+    acc = out if out is not None else np.zeros_like(plucks)
     for stem, db in ((plucks, pluck_db), (bells, bell_db)):
         if np.isfinite(db):
-            out += synth.db_to_amp(db) * stem
-    return out
+            if inplace:
+                stem *= synth.db_to_amp(db)
+                acc += stem
+            else:
+                acc += synth.db_to_amp(db) * stem
+    return acc
 
 
 def _render_breath(cfg: CompositionConfig, tl: Timeline, sal: FloatArray, n_audio: int) -> FloatArray:
@@ -418,10 +435,11 @@ def _audible(cfg: CompositionConfig, tl: Timeline, time: float) -> bool:
     """A note sounds only if its section is not muted AND the (smoothed) gain envelope is up.
 
     The envelope is zero-phase smoothed, so it starts rising slightly *before* an unmute; the
-    configured section gain gates that pre-ring away.
+    configured section gain gates that pre-ring away. Any positive configured gain is audible
+    (quiet is not muted), and the envelope only has to be positive (filtfilt can undershoot).
     """
     j = min(int(time * tl.rate), tl.t.size - 1)
-    return cfg.sections[int(tl.section[j])].pluck_gain > 0.0 and tl.pluck_gain[j] > 0.02
+    return cfg.sections[int(tl.section[j])].pluck_gain > 0.0 and tl.pluck_gain[j] > 0.0
 
 
 def analyse(cfg: CompositionConfig) -> tuple[FloatArray, Timeline, FloatArray, list[Event]]:
@@ -458,7 +476,7 @@ def render(cfg: CompositionConfig) -> RenderResult:
 
     add_normalised(_render_drone(cfg, tl_pad, gammas, n_audio), m.drone_db)
     plucks, bells = _render_notes(cfg, tl_pad, events, n_audio)
-    mix[:] += mix_notes(plucks, bells, m.pluck_db, m.bell_db)
+    mix_notes(plucks, bells, m.pluck_db, m.bell_db, out=mix)
     del plucks, bells
     add_normalised(_render_breath(cfg, tl_pad, sal_pad, n_audio), m.breath_db)
     add_normalised(_render_pole(cfg, n_audio), m.pole_db)

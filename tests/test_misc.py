@@ -109,7 +109,13 @@ SECTION = 'name="a"\nduration=1\nx_start=2\nx_end=3\nzeros_start=1\nzeros_end=2\
         ('title="t"\n[[sections]]\n' + SECTION + "loop=0\n", r"loop must be > 0"),
         ('title="t"\n[[sections]]\nname="a"\nduration=1\n', r"missing keys"),
         ('title="t"\nsample_rate=5000\n[[sections]]\n' + SECTION, r"sample_rate must be >= 8000"),
-        ('title="t"\ndrone_max_hz=30000\n[[sections]]\n' + SECTION, r"drone_max_hz.*Nyquist"),
+        ('title="t"\ndrone_max_hz=0\n[[sections]]\n' + SECTION, r"drone_max_hz must be > 0"),
+        ('title="t"\nseed=1.5\n[[sections]]\n' + SECTION, r"seed must be a non-negative integer"),
+        (
+            'title="t"\n[[sections]]\n' + SECTION.replace("duration=1", "duration=0.0001"),
+            r"shorter than 2 control frames",
+        ),
+        ('title="t"\n[[sections]]\n' + SECTION + "[mix]\nreverb_t60=0.0001\n", r"reverb_t60 must be >= 0.05"),
         ('title="t"\ntaper="kaiser"\n[[sections]]\n' + SECTION, r"taper must be"),
         ('title="t"\n[[sections]]\n' + SECTION + "[mix]\nreverb_mix=1.5\n", r"\[mix\].*reverb_mix"),
         ('title="t"\n[[sections]]\n' + SECTION + "[mix]\npeak_db=3\n", r"peak_db must be <= 0"),
@@ -129,3 +135,18 @@ def test_minus_inf_mutes_a_voice(tmp_path):
     p = tmp_path / "c.toml"
     p.write_text('title="t"\n[[sections]]\n' + SECTION + "[mix]\npluck_db=-inf\n")
     assert load_config(p).mix.pluck_db == float("-inf")
+
+
+def test_low_sample_rate_scores_are_playable(tmp_path):
+    """review: validation must not reject playable 8 kHz scores (partials are capped instead)."""
+    p = tmp_path / "c.toml"
+    p.write_text('title="t"\nsample_rate=8000\ndrone_base_hz=440\n[[sections]]\n' + SECTION)
+    cfg = load_config(p)  # default drone_max_hz 6000 > Nyquist is fine: capped at render
+    res = render(cfg)
+    assert np.all(np.isfinite(res.audio))
+
+
+def test_degenerate_reverb_is_dry_not_nan():
+    x = np.random.default_rng(0).standard_normal((8000, 2))
+    y = synth.reverb(x, 8000, np.random.default_rng(1), t60=1e-5, mix=0.5)
+    assert np.all(np.isfinite(y))

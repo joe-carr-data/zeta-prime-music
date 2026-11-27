@@ -201,6 +201,17 @@ def test_quiet_section_is_not_muted():
 
     cfg = CompositionConfig(
         title="quiet", sample_rate=8000, control_rate=1000, drone_max_hz=3000.0,
-        sections=[Section("quiet", 2.0, 1.5, 31.5, 50, 50, pluck_gain=0.05)],
+        sections=[Section("quiet", 2.0, 1.5, 31.5, 50, 50, pluck_gain=0.01)],
     )  # fmt: skip
     assert analyse(cfg)[3], "a quiet (not muted) section must still produce events"
+
+
+def test_mix_notes_inplace_matches_copy():
+    from zeta_music.composition import mix_notes
+
+    rng = np.random.default_rng(0)
+    p, b = rng.standard_normal((50, 2)), rng.standard_normal((50, 2))
+    expected = mix_notes(p, b, -6.0, -10.0)
+    out = np.zeros_like(p)
+    mix_notes(p.copy(), b.copy(), -6.0, -10.0, out=out)
+    np.testing.assert_allclose(out, expected)

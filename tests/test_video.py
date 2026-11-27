@@ -1,5 +1,6 @@
 import shutil
 
+import numpy as np
 import pytest
 
 from zeta_music import video
@@ -72,3 +73,30 @@ def test_encoder_early_exit_is_a_runtime_error(tiny_config, tiny_wav, tmp_path, 
     monkeypatch.setattr(video, "_ffmpeg_cmd", lambda *a, **k: ["sh", "-c", "echo boom >&2; exit 3"])
     with pytest.raises(RuntimeError, match=r"exit 3.*boom"):
         render_video(tiny_config, tiny_wav, tmp_path / "x.mp4", VideoSpec(fps=5, start=4.0, end=5.0))
+
+
+@needs_ffmpeg
+def test_clip_audio_comes_from_the_requested_interval(tiny_config, tiny_wav, tmp_path):
+    """review: the clip's audio must be the source's [start, end), not just any audio."""
+    import subprocess
+
+    import soundfile as sf
+
+    out = render_video(tiny_config, tiny_wav, tmp_path / "v.mp4", VideoSpec(fps=5, start=3.0, end=6.0))
+    dec = tmp_path / "dec.wav"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(out), "-ac", "1", "-ar", "8000", str(dec)], check=True)
+    clip, _ = sf.read(dec)
+    src, sr = sf.read(tiny_wav)
+    src = src.mean(axis=1)
+
+    def env(a):
+        blk = sr // 20
+        return np.array([np.sqrt(np.mean(a[i : i + blk] ** 2)) for i in range(0, len(a) - blk, blk)])
+
+    e_clip = env(clip)
+    scores = {}
+    for start in (1.0, 2.0, 3.0, 4.0):
+        e_src = env(src[int(start * sr) : int((start + 3.0) * sr)])
+        n = min(e_clip.size, e_src.size)
+        scores[start] = np.corrcoef(e_clip[:n], e_src[:n])[0, 1]
+    assert max(scores, key=scores.get) == 3.0 and scores[3.0] > 0.9

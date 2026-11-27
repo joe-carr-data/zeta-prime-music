@@ -157,7 +157,10 @@ def reverb(
     env[: int(predelay * sr)] = 0.0
     b, a = signal.butter(1, min(damping_hz, 0.45 * sr) / (sr / 2))
     ir = np.stack([signal.lfilter(b, a, rng.standard_normal(n_ir)) * env for _ in range(2)], axis=1)
-    ir /= np.sqrt(np.sum(ir**2, axis=0, keepdims=True))
+    energy = np.sqrt(np.sum(ir**2, axis=0, keepdims=True))
+    if not np.all(energy > 0):  # degenerate room (t60 shorter than a sample after predelay): dry only
+        return np.array(stereo, dtype=np.float64, copy=True)
+    ir /= energy
     out = np.array(stereo, dtype=np.float64, copy=True)
     for c in range(2):  # one channel at a time, blended in place: no full-length stereo temporaries
         wet = signal.fftconvolve(out[:, c], ir[:, c])[: out.shape[0]]
