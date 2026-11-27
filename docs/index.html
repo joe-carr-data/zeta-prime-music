@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Zeta Prime Music</title>
+<meta name="description" content="The music of the primes: a composition, a video and a playable instrument generated from the zeros of the Riemann zeta function.">
+<meta property="og:title" content="Zeta Prime Music">
+<meta property="og:description" content="Add the zeros of the Riemann zeta function one by one and hear the primes come into tune.">
+<meta property="og:image" content="media/critical-strip-poster.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="assets/site.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a0e16'/%3E%3Cpath d='M4 22h4l2-14 2 14h3l2-9 2 9h3l2-5 2 5h2' fill='none' stroke='%232dd4bf' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="./"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M2 22h4l2-14 2 14h3l2-9 2 9h3l2-5 2 5h4" fill="none" stroke="#2dd4bf" stroke-width="2.4" stroke-linejoin="round"/></svg>Zeta Prime Music</a>
+    <nav class="nav" aria-label="Site">
+      <a href="./" aria-current="page">Home</a>
+      <a href="#listen">Listen</a>
+      <a href="demo.html">Instrument</a>
+      <a href="musicians.html">For musicians</a>
+      <a href="https://github.com/joe-carr-data/zeta-prime-music">Code</a>
+    </nav>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <p class="eyebrow">The music of the primes</p>
+      <h1>Zeta Prime Music</h1>
+      <p class="lede">Every zero of the Riemann zeta function is a wave. <b>Add them one by one and the primes come into tune.</b> A composition, a video and a playable instrument, generated note for note from the mathematics.</p>
+      <div class="cta">
+        <a class="btn primary" href="#listen">▶ Listen</a>
+        <a class="btn" href="demo.html">Play the instrument</a>
+        <a class="btn" href="musicians.html">How it's made</a>
+      </div>
+    </div>
+    <div class="hero-media">
+      <img src="media/hero.gif" width="720" height="360" alt="Animation: as the number of zeta zeros grows from 1 to 200, a wavy curve sharpens into spikes exactly at the primes 2, 3, 5, 7, 11, 13 and so on, with smaller spikes at prime powers.">
+    </div>
+  </div>
+</div>
+
+<main>
+  <section id="listen">
+    <div class="wrap">
+      <p class="kicker">Listen</p>
+      <h2>Critical Strip</h2>
+      <p class="intro">A piece in five movements. One bar of the number line, from 1.5 to 31.5, is replayed while zeros are added along the Fibonacci numbers. Out-of-tune notes slide onto the primes; prime powers ring as softer bells; the drone is the zeros themselves.</p>
+      <div class="grid-2">
+        <div class="card">
+          <span class="tag main">Main version</span>
+          <h3 style="margin-top:12px">Critical Strip</h3>
+          <p class="meta">3:28 · 12 bars of tuning-in · 500 zeros at the climax</p>
+          <audio controls preload="none" src="media/audio/critical-strip.m4a"></audio>
+        </div>
+        <div class="card">
+          <span class="tag">Alternative</span>
+          <h3 style="margin-top:12px">Critical Strip (revised)</h3>
+          <p class="meta">3:08 · call and response in IV · ends on 3 → 2</p>
+          <audio controls preload="none" src="media/audio/critical-strip-revised.m4a"></audio>
+        </div>
+      </div>
+      <div class="card" style="margin-top:24px; padding:0; overflow:hidden">
+        <video controls preload="none" poster="media/critical-strip-poster.jpg" src="media/critical-strip.mp4" style="width:100%"></video>
+      </div>
+      <p class="meta" style="margin-top:10px">The visualiser: the spike curve forming in sync with the music, every note labelled as it is struck.</p>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="wrap">
+      <p class="kicker">How it works</p>
+      <h2>From zeros to notes in four steps</h2>
+      <p class="intro">Riemann's explicit formula writes the primes as a sum of waves, one per zero. The piece makes each part of that formula audible.</p>
+      <div class="steps">
+        <div class="step"><h3>One zero, one wave</h3><svg data-fig="one" viewBox="0 0 240 70" aria-hidden="true"></svg><p>The zero ρ = ½ + 14.1347i contributes cos(14.13 ln x): a wave that stretches as x grows. It becomes the lowest drone tone.</p></div>
+        <div class="step"><h3>Waves add up</h3><svg data-fig="few" viewBox="0 0 240 70" aria-hidden="true"></svg><p>With a handful of zeros the sum wobbles, with broad bumps between the integers. These play as out-of-tune ghost notes.</p></div>
+        <div class="step"><h3>Spikes at the primes</h3><svg data-fig="many" viewBox="0 0 240 70" aria-hidden="true"></svg><p>With 200 zeros the waves cancel everywhere except at 2, 3, 5, 7, 11 … and, smaller, at 4, 8, 9, 16, 25, 27.</p></div>
+        <div class="step"><h3>Spikes become music</h3><svg data-fig="notes" viewBox="0 0 240 70" aria-hidden="true"></svg><p>Each prime is plucked at the n-th harmonic of G: 3 is a fifth, 5 a major third, 7 a harmonic seventh. Prime powers ring as bells.</p></div>
+      </div>
+      <div class="formula" style="margin-top:32px">ψ′(x) = 1 − 2x<sup>−1/2</sup> Σ<sub>γ</sub> cos(γ ln x) − 1/(x(x²−1))</div>
+    </div>
+  </section>
+
+  <section id="form">
+    <div class="wrap">
+      <p class="kicker">The piece</p>
+      <h2>Five movements, order from noise and back</h2>
+      <div class="timeline" role="img" aria-label="Form of Critical Strip: I Pole 16 s, II Adding zeros 96 s, III Further out 44 s, IV Critical line 16 s, V Reflection 32 s">
+        <div style="flex:16">I<span>0:00</span></div>
+        <div style="flex:96">II · Adding zeros<span>0:16 · 1 → 200 zeros</span></div>
+        <div style="flex:44">III · Further out<span>1:52 · to x = 260</span></div>
+        <div class="peak" style="flex:16">IV<span>2:36</span></div>
+        <div style="flex:32">V · Reflection<span>2:52</span></div>
+      </div>
+      <div class="grid-3" style="margin-top:28px">
+        <div class="card"><h3>A tuning process</h3><p>Movement II is a process piece: the same bar twelve times, each with more zeros. You hear the mathematics converge as intonation.</p></div>
+        <div class="card"><h3>Arithmetic dynamics</h3><p>Loudness is the spike height: full at primes, −6 dB at squares, −9.5 dB at cubes. The accent pattern is the arithmetic of the numbers.</p></div>
+        <div class="card"><h3>Two pitch worlds</h3><p>An inharmonic drone rooted on E (the zeros) under a just-intoned melody in G (the primes): E minor and G major at once.</p></div>
+      </div>
+      <p style="margin-top:28px"><a href="musicians.html">Read the full guide for musicians →</a></p>
+    </div>
+  </section>
+
+  <section id="code">
+    <div class="wrap grid-2" style="align-items:center">
+      <div>
+        <p class="kicker">Open source</p>
+        <h2>Render it yourself</h2>
+        <p class="intro" style="margin-bottom:16px">A tested Python engine (numpy, scipy, mpmath) with 500 bundled zeros. Scores are TOML files: change the bar length, the key, the number of zeros, and render your own version. MIDI export keeps every microtonal bend.</p>
+        <a class="btn" style="color:var(--ink); border-color:var(--rule)" href="https://github.com/joe-carr-data/zeta-prime-music">View on GitHub</a>
+      </div>
+<pre><code>uv sync
+make render     # the piece → WAV, MIDI, events
+make video      # the visualiser
+make web        # the playable instrument
+uv run zeta-music zeros 5
+    1  1/2 + 14.134725141735 i
+    2  1/2 + 21.022039638772 i
+    3  1/2 + 25.010857580146 i
+    …</code></pre>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Zeta Prime Music · <a href="https://github.com/joe-carr-data/zeta-prime-music">source</a></span>
+    <span>Inspired by the <i>From First Principles</i> podcast, episode 69, and Riemann's 1859 paper.</span>
+  </div>
+</footer>
+
+<script>
+// Step illustrations, computed from the first zeros (no hand-drawn curves).
+const G = [14.134725, 21.022040, 25.010858, 30.424876, 32.935062, 37.586178, 40.918719, 43.327073, 48.005151, 49.773832];
+const ink = () => getComputedStyle(document.documentElement).getPropertyValue("--ink").trim();
+function path(fn, x0, x1, w, h, lo, hi, n = 240) {
+  let d = "";
+  for (let i = 0; i <= n; i++) {
+    const x = x0 + (x1 - x0) * i / n, y = Math.max(lo, Math.min(hi, fn(x)));
+    d += (i ? "L" : "M") + (w * i / n).toFixed(1) + " " + (h - (y - lo) / (hi - lo) * h).toFixed(1);
+  }
+  return d;
+}
+function sum(x, N) { let s = 0; for (let k = 0; k < N; k++) s += Math.cos(G[k] * Math.log(x)) * Math.exp(-0.5 * (2.5 * (k + .5) / N) ** 2); return -2 * s / Math.sqrt(x) * x / Math.log(x); }
+function draw() {
+  const c = ink(), accent = getComputedStyle(document.documentElement).getPropertyValue("--wave").trim();
+  for (const svg of document.querySelectorAll("svg[data-fig]")) {
+    const k = svg.dataset.fig; let html = "";
+    if (k === "one") html = `<path d="${path(x => Math.cos(G[0] * Math.log(x)), 1.5, 31.5, 240, 70, -1.1, 1.1)}" fill="none" stroke="${accent}" stroke-width="1.6"/>`;
+    if (k === "few") html = `<path d="${path(x => sum(x, 4), 1.5, 31.5, 240, 70, -6, 14)}" fill="none" stroke="${c}" stroke-width="1.5"/>`;
+    if (k === "many") {
+      const zs = [2,3,4,5,7,8,9,11,13,16,17,19,23,25,27,29,31], primes = new Set([2,3,5,7,11,13,17,19,23,29,31]);
+      html = zs.map(n => { const x = (n - 1.5) / 30 * 240, h = primes.has(n) ? 58 : 30; return `<line x1="${x}" x2="${x}" y1="70" y2="${70 - h}" stroke="${primes.has(n) ? "var(--prime)" : "var(--power)"}" stroke-width="2"/>`; }).join("");
+    }
+    if (k === "notes") {
+      const pts = [[2,0],[3,702],[5,386],[7,969],[11,551],[13,841],[17,105],[19,298],[23,628],[29,1030],[31,1145]];
+      html = `<line x1="0" x2="240" y1="62" y2="62" stroke="var(--grid)"/>` + pts.map(([n, c2]) => `<circle cx="${(n - 1.5) / 30 * 240}" cy="${62 - c2 / 1200 * 54}" r="4.5" fill="var(--prime)"/>`).join("");
+    }
+    svg.innerHTML = html;
+  }
+}
+draw();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+</script>
+</body>
+</html>

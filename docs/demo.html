@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hear the Primes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one working instrument (graph-paper plot + controls) on top, the explanation and the live list of zeros below. */
+:root {
+  --paper: #eef2f4; --panel: #f8fafb; --grid: #d6dfe4; --rule: #b9c6ce;
+  --ink: #14212b; --muted: #576874;
+  --prime: #b4233c; --power: #1d5fa8; --ghost: #8b98a3; --accent: #0f766e; --on-accent: #ffffff;
+  --display: "Space Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #0f1720; --panel: #131d27; --grid: #1c2a36; --rule: #2b3d4b;
+  --ink: #e4ebf0; --muted: #93a4b1;
+  --prime: #ff6b7f; --power: #6aa8ff; --ghost: #6f7f8b; --accent: #2dd4bf; --on-accent: #062a26; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #0f1720; --panel: #131d27; --grid: #1c2a36; --rule: #2b3d4b;
+  --ink: #e4ebf0; --muted: #93a4b1;
+  --prime: #ff6b7f; --power: #6aa8ff; --ghost: #6f7f8b; --accent: #2dd4bf; --on-accent: #062a26; color-scheme: dark }
+
+body { background: var(--paper); color: var(--ink); font: 15px/1.55 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 1040px; margin: 0 auto; padding-block: 28px 48px; display: grid; gap: 28px; }
+header { display: grid; gap: 6px; }
+h1 { font: 700 clamp(28px, 5vw, 44px)/1.05 var(--display); letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+.lead { margin: 0; color: var(--muted); max-width: 62ch; }
+.lead b { color: var(--ink); font-weight: 600; }
+
+.instrument { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 16px; display: grid; gap: 14px; }
+.plot { position: relative; width: 100%; aspect-ratio: 2.4 / 1; min-height: 220px; max-width: 100%; }
+canvas { width: 100%; height: 100%; display: block; }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; }
+.zeros { display: flex; align-items: center; gap: 10px; flex: 1 1 280px; min-width: 0; }
+.zeros label { font: 600 12px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); }
+.n { font: 600 22px var(--mono); font-variant-numeric: tabular-nums; min-width: 3.2ch; text-align: right; }
+.buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+button { font: 600 14px var(--body); border-radius: 8px; padding: 9px 14px; cursor: pointer; border: 1px solid var(--rule); background: transparent; color: var(--ink); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button[disabled] { opacity: 0.45; cursor: default; }
+
+.tally { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: 500 13px var(--mono); font-variant-numeric: tabular-nums; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--rule); display: inline-flex; gap: 8px; align-items: center; }
+.dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.toggle { display: inline-flex; gap: 8px; align-items: center; font: 500 13px var(--body); color: var(--muted); cursor: pointer; }
+.toggle input { accent-color: var(--accent); }
+.status { font: 400 13px var(--mono); color: var(--muted); margin-left: auto; }
+
+.below { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 28px; }
+@media (max-width: 760px) { .below { grid-template-columns: minmax(0, 1fr); } .status { margin-left: 0; } }
+h2 { font: 700 18px var(--display); margin: 0 0 10px; }
+.legend { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.legend li { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 12px; align-items: baseline; }
+.legend .k { font: 600 12px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; }
+.formula { font: 400 14px var(--mono); background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 12px 14px; overflow-x: auto; white-space: nowrap; margin-top: 16px; }
+.zero-list { font: 400 13px/1.7 var(--mono); font-variant-numeric: tabular-nums; max-height: 300px; overflow-y: auto; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding-block: 6px; margin: 0; list-style: none; padding-left: 0; }
+.zero-list li { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); }
+.zero-list li span:first-child { color: var(--ink); }
+.note { color: var(--muted); font-size: 13px; margin: 10px 0 0; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<p style="max-width:1040px;margin:0 auto;padding:14px max(16px,env(safe-area-inset-left,0px)) 0;font:500 14px Inter,system-ui,sans-serif"><a href="./" style="color:inherit">&larr; Zeta Prime Music</a></p>
+
+<div class="wrap">
+  <header>
+    <h1>Hear the Primes</h1>
+    <p class="lead">Each nontrivial zero of the Riemann zeta function adds one wave, <b>cos(γ ln x)</b>. Add enough of them and the waves pile up exactly on the primes. Move the slider, then press <b>Play bar</b> to hear the number line from 1.5 to 31.5.</p>
+  </header>
+
+  <section class="instrument" aria-label="Instrument">
+    <div class="plot"><canvas id="plot" role="img" aria-label="Sum of the first N zeta-zero waves over x from 1.5 to 31.5, with peaks labelled" aria-describedby="peaks-text"></canvas></div>
+    <div class="controls">
+      <div class="zeros">
+        <label for="nz">Zeros</label>
+        <input id="nz" type="range" min="1" max="200" step="1" value="13">
+        <span class="n" id="nval">13</span>
+      </div>
+      <div class="buttons">
+        <button class="primary" id="play" type="button">Play bar</button>
+        <button id="build" type="button">Build up 1 → 200</button>
+        <button id="stop" type="button" disabled>Stop</button>
+      </div>
+      <label class="toggle" for="waves"><input id="waves" type="checkbox"> Show the first waves</label>
+    </div>
+    <div class="tally" aria-live="polite">
+      <span class="chip"><span class="dot" style="background: var(--prime)"></span><span id="t-prime">–</span></span>
+      <span class="chip"><span class="dot" style="background: var(--power)"></span><span id="t-power">–</span></span>
+      <span class="chip"><span class="dot" style="background: var(--ghost)"></span><span id="t-ghost">–</span></span>
+      <span class="status" id="status">Sound starts when you press Play.</span>
+    </div>
+    <p class="sr-only" id="peaks-text" aria-live="polite"></p>
+  </section>
+
+  <section class="below">
+    <div>
+      <h2>What you are hearing</h2>
+      <ul class="legend">
+        <li><span class="k">Drone</span><span>One sine per zero, pitched in proportion to γ (the first zero, γ₁ = 14.1347, is E2). The zeros are not a harmonic series, so the chord is metallic.</span></li>
+        <li><span class="k" style="color: var(--prime)">Primes</span><span>Plucked strings at the peaks that land on a prime. Pitch is that harmonic of G2 folded into one octave: 3 is a fifth, 5 a major third, 7 a harmonic seventh.</span></li>
+        <li><span class="k" style="color: var(--power)">Powers</span><span>Bells at 4, 8, 9, 16, 25, 27: the smaller spikes at prime powers. Their weight is 1/k of a prime's, so they ring softer.</span></li>
+        <li><span class="k" style="color: var(--ghost)">Ghosts</span><span>Peaks that sit between integers because too few zeros are active. They play out of tune and disappear as you add zeros.</span></li>
+      </ul>
+      <div class="formula">ψ′(x) = 1 − 2x<sup>−1/2</sup> Σ<sub>γ</sub> cos(γ ln x) − 1/(x(x²−1))</div>
+      <p class="note">The plot shows the zeros' term, normalised so a prime's spike reaches about 1 and a prime square's about ½. Zeros use a Gaussian taper to soften ringing.</p>
+    </div>
+    <div>
+      <h2>Active zeros <span id="zcount" style="color: var(--muted); font-weight: 500"></span></h2>
+      <ul class="zero-list" id="zlist"></ul>
+      <p class="note">ρ = ½ + iγ. Ordinates computed with mpmath.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+const GAMMAS = [14.134725142, 21.022039639, 25.01085758, 30.424876126, 32.935061588, 37.586178159, 40.918719012, 43.327073281, 48.005150881, 49.773832478, 52.970321478, 56.446247697, 59.347044003, 60.831778525, 65.112544048, 67.079810529, 69.546401711, 72.067157674, 75.704690699, 77.144840069, 79.33737502, 82.910380854, 84.735492981, 87.425274613, 88.809111208, 92.491899271, 94.651344041, 95.870634228, 98.831194218, 101.317851006, 103.72553804, 105.446623052, 107.168611184, 111.029535543, 111.874659177, 114.320220915, 116.226680321, 118.790782866, 121.370125002, 122.946829294, 124.256818554, 127.51668388, 129.5787042, 131.087688531, 133.497737203, 134.756509753, 138.116042055, 139.736208952, 141.123707404, 143.111845808, 146.000982487, 147.422765343, 150.053520421, 150.925257612, 153.024693811, 156.112909294, 157.597591818, 158.849988171, 161.188964138, 163.030709687, 165.537069188, 167.184439978, 169.094515416, 169.911976479, 173.41153652, 174.754191523, 176.441434298, 178.377407776, 179.91648402, 182.207078484, 184.874467848, 185.598783678, 187.228922584, 189.416158656, 192.026656361, 193.079726604, 195.26539668, 196.876481841, 198.015309676, 201.264751944, 202.493594514, 204.189671803, 205.394697202, 207.906258888, 209.576509717, 211.690862595, 213.34791936, 214.547044783, 216.169538508, 219.067596349, 220.714918839, 221.430705555, 224.007000255, 224.98332467, 227.42144428, 229.337413306, 231.2501887, 231.987235253, 233.693404179, 236.524229666, 237.769820481, 239.555477573, 241.049157796, 242.823271934, 244.070898497, 247.136990075, 248.10199006, 249.573689645, 251.014947795, 253.069986748, 255.306256455, 256.380713694, 258.610439492, 259.87440699, 260.805084505, 263.573893905, 265.557851839, 266.614973782, 267.921915083, 269.970449024, 271.494055642, 273.459609188, 275.587492649, 276.452049503, 278.25074353, 279.229250928, 282.465114765, 283.211185733, 284.835963981, 286.667445363, 287.911920501, 289.579854929, 291.846291329, 293.558434139, 294.965369619, 295.573254879, 297.979277062, 299.840326054, 301.649325462, 302.69674959, 304.864371341, 305.728912602, 307.219496128, 310.109463147, 311.16514153, 312.427801181, 313.985285731, 315.475616089, 317.734805942, 318.853104256, 321.160134309, 322.144558672, 323.466969558, 324.862866052, 327.443901262, 329.03307168, 329.953239728, 331.474467583, 333.645378525, 334.211354833, 336.841850428, 338.339992851, 339.858216725, 341.042261111, 342.05487751, 344.66170294, 346.347870566, 347.272677584, 349.316260871, 350.408419349, 351.878649025, 353.488900489, 356.017574977, 357.151302252, 357.952685102, 359.743754953, 361.289361696, 363.331330579, 364.736024114, 366.212710288, 367.993575482, 368.968438096, 370.050919212, 373.061928372, 373.864873911, 375.825912767, 376.324092231, 378.43668025, 379.872975347, 381.484468617, 383.44352945, 384.956116815, 385.861300846, 387.222890222, 388.846128354, 391.456083564, 392.24508334, 393.427743844, 395.582870011, 396.381854223];
+const X0 = 1.5, X1 = 31.5, BAR = 8.0, GAP = 0.4, GRID = 1200;
+const FIB = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 200];
+const DRONE_BASE = 82.41, PLUCK_BASE = 98.0, DRONE_PARTIALS = 120;
+document.documentElement.lang = document.documentElement.lang || "en";
+
+// ---------- maths (ported from zeta_music.composition; parity checked for N = 1..200) ----------
+function vonMangoldtPrime(n) { // [p, k] if n = p^k else null
+  if (n < 2) return null;
+  for (let p = 2; p * p <= n; p++) {
+    if (n % p === 0) { let m = n, k = 0; while (m % p === 0) { m /= p; k++; } return m === 1 ? [p, k] : null; }
+  }
+  return [n, 1];
+}
+const XS = Float64Array.from({ length: GRID }, (_, i) => X0 + (X1 - X0) * i / (GRID - 1));
+let COS = null; // cos(gamma_k ln x_j), computed once: the slider only changes weights
+function cosTable() {
+  if (COS) return COS;
+  COS = new Float32Array(GAMMAS.length * GRID);
+  for (let k = 0; k < GAMMAS.length; k++) for (let j = 0; j < GRID; j++) COS[k * GRID + j] = Math.cos(GAMMAS[k] * Math.log(XS[j]));
+  return COS;
+}
+const SCALE = Float64Array.from(XS, x => -2 / Math.sqrt(x) * x / Math.log(x) * Math.PI);
+function salience(N) {
+  const C = cosTable(), out = new Float64Array(GRID);
+  let iw = 0;
+  for (let k = 0; k < N; k++) {
+    const w = Math.exp(-0.5 * (2.5 * (k + 0.5) / N) ** 2);
+    iw += w * 2 * Math.PI / Math.log(GAMMAS[k] / (2 * Math.PI));
+    const row = k * GRID; for (let j = 0; j < GRID; j++) out[j] += w * C[row + j];
+  }
+  iw = Math.max(iw, Math.exp(-0.5 * 1.25 ** 2) * 2 * Math.PI / Math.log(GAMMAS[0] / (2 * Math.PI)));
+  for (let j = 0; j < GRID; j++) out[j] *= SCALE[j] / iw;
+  return out;
+}
+function fold(n) { return n / 2 ** Math.floor(Math.log2(n)); }
+function pitch(x) { const n = Math.max(Math.round(x), 1); return PLUCK_BASE * fold(n) * 2 ** Math.min(3, Math.floor(Math.log2(n) / 2.5)) * (x / n); }
+function findPeaks(ys, N) {
+  const peaks = [], thr = 0.18;
+  for (let i = 1; i < ys.length - 1; i++) {
+    if (!(ys[i] > ys[i - 1] && ys[i] >= ys[i + 1]) || ys[i] < thr) continue;
+    let l = ys[i], r = ys[i];
+    for (let a = i - 1; a >= 0 && ys[a] <= ys[i]; a--) l = Math.min(l, ys[a]);
+    for (let b = i + 1; b < ys.length && ys[b] <= ys[i]; b++) r = Math.min(r, ys[b]);
+    if (ys[i] - Math.max(l, r) < thr) continue;
+    const y0 = ys[i - 1], y1 = ys[i], y2 = ys[i + 1], den = y0 - 2 * y1 + y2;
+    const d = den !== 0 ? 0.5 * (y0 - y2) / den : 0;
+    const x = XS[i] + d * (XS[1] - XS[0]), n = Math.round(x);
+    const pk = vonMangoldtPrime(n), tol = Math.min(0.25, 0.5 * x * Math.PI / (14 + 2.2 * N));
+    let kind = "ghost";
+    if (pk && Math.abs(x - n) <= tol) kind = pk[1] === 1 ? "prime" : "power";
+    peaks.push({ x, y: ys[i], n, kind, freq: pitch(x) });
+  }
+  return peaks;
+}
+const TRUE = []; for (let n = 2; n <= 31; n++) { const pk = vonMangoldtPrime(n); if (pk) TRUE.push({ n, prime: pk[1] === 1 }); }
+
+// ---------- state ----------
+const state = { N: 13, ys: null, peaks: [], playing: false, mode: null, barStart: 0, nextBar: 0, fibIndex: 0 };
+const el = id => document.getElementById(id);
+const canvas = el("plot"), ctx2d = canvas.getContext("2d");
+let listedN = 0;
+
+function recompute() {
+  state.ys = salience(state.N);
+  state.peaks = findPeaks(state.ys, state.N);
+  const c = { prime: 0, power: 0, ghost: 0 };
+  for (const p of state.peaks) c[p.kind]++;
+  el("t-prime").textContent = `${c.prime} of 11 primes`;
+  el("t-power").textContent = `${c.power} of 6 prime powers`;
+  el("t-ghost").textContent = `${c.ghost} ghost${c.ghost === 1 ? "" : "s"}`;
+  el("nval").textContent = state.N;
+  el("zcount").textContent = `(${state.N})`;
+  el("peaks-text").textContent = "Peaks found: " + (state.peaks.map(p =>
+    p.kind === "ghost" ? `ghost at ${p.x.toFixed(1)}` : `${p.n} (${p.kind === "prime" ? "prime" : "prime power"})`).join(", ") || "none") + ".";
+  if (listedN !== state.N) { // incremental list update
+    const list = el("zlist");
+    while (listedN > state.N) { list.lastElementChild.remove(); listedN--; }
+    let html = "";
+    for (let k = listedN; k < state.N; k++) html += `<li><span>γ<sub>${k + 1}</sub> = ${GAMMAS[k].toFixed(6)}</span><span>${(1 / Math.hypot(0.5, GAMMAS[k])).toFixed(4)}</span></li>`;
+    if (html) list.insertAdjacentHTML("beforeend", html);
+    listedN = state.N;
+  }
+  draw();
+}
+
+// ---------- drawing ----------
+function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function currentX() {
+  if (!state.playing || !audio) return null;
+  const t = audio.ctx.currentTime - state.barStart;
+  return X0 + (X1 - X0) * Math.max(0, Math.min(1, t / BAR));
+}
+function draw() {
+  const dpr = window.devicePixelRatio || 1, W = canvas.clientWidth, H = canvas.clientHeight;
+  if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); }
+  const g = ctx2d; g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  const padL = 8, padR = 8, padT = 26, padB = 26, YMIN = -1.0, YMAX = 2.0;
+  const X = x => padL + (x - X0) / (X1 - X0) * (W - padL - padR);
+  const Y = y => padT + (YMAX - Math.max(YMIN, Math.min(YMAX, y))) / (YMAX - YMIN) * (H - padT - padB);
+  const C = { grid: css("--grid"), rule: css("--rule"), ink: css("--ink"), muted: css("--muted"), prime: css("--prime"), power: css("--power"), ghost: css("--ghost"), accent: css("--accent") };
+  g.lineWidth = 1; g.strokeStyle = C.grid; g.beginPath();
+  for (let x = 2; x <= 31; x++) { g.moveTo(X(x) + 0.5, padT); g.lineTo(X(x) + 0.5, H - padB); }
+  for (let y = -1; y <= 2; y += 0.5) { g.moveTo(padL, Y(y) + 0.5); g.lineTo(W - padR, Y(y) + 0.5); }
+  g.stroke();
+  for (const t of TRUE) { g.strokeStyle = t.prime ? C.prime : C.power; g.globalAlpha = 0.22; g.beginPath(); g.moveTo(X(t.n) + 0.5, padT); g.lineTo(X(t.n) + 0.5, H - padB); g.stroke(); }
+  g.globalAlpha = 1;
+  g.strokeStyle = C.rule; g.beginPath(); g.moveTo(padL, Y(0) + 0.5); g.lineTo(W - padR, Y(0) + 0.5); g.stroke();
+  g.fillStyle = C.muted; g.font = `11px ${css("--mono")}`; g.textAlign = "center";
+  for (let x = 5; x <= 30; x += 5) g.fillText(String(x), X(x), H - 8);
+  const head = currentX();
+  const path = until => { g.beginPath(); let started = false; for (let i = 0; i < GRID; i++) { if (XS[i] > until) break; const px = X(XS[i]), py = Y(state.ys[i]); if (!started) { g.moveTo(px, py); started = true; } else g.lineTo(px, py); } };
+  g.lineJoin = "round"; g.strokeStyle = C.ink; g.globalAlpha = state.playing ? 0.25 : 1; g.lineWidth = 1.6; path(X1); g.stroke(); g.globalAlpha = 1;
+  if (head !== null) { g.lineWidth = 2; path(head); g.stroke(); g.strokeStyle = C.accent; g.lineWidth = 1.5; g.beginPath(); g.moveTo(X(head), padT - 6); g.lineTo(X(head), H - padB); g.stroke(); }
+  if (el("waves").checked) { // the individual waves cos(gamma_k ln x), as in the source video
+    const shown = Math.min(state.N, 4), C2 = cosTable();
+    for (let k = 0; k < shown; k++) {
+      g.strokeStyle = C.accent; g.globalAlpha = 0.75 - 0.15 * k; g.lineWidth = 1.2; g.beginPath();
+      for (let j = 0; j < GRID; j += 2) { const px = X(XS[j]), py = Y(0.5 + 0.35 * C2[k * GRID + j]); if (j === 0) g.moveTo(px, py); else g.lineTo(px, py); }
+      g.stroke();
+      g.fillStyle = C.accent; g.font = `11px ${css("--mono")}`; g.textAlign = "left";
+      const narrow = W < 420; // stack labels in a column on phones so none is clipped
+      g.fillText(`γ${k + 1} = ${GAMMAS[k].toFixed(3)}`, narrow ? padL + 4 : padL + 4 + 92 * k, narrow ? padT + 12 + 13 * k : padT - 10);
+    }
+    g.globalAlpha = 1; g.textAlign = "center";
+  }
+  g.font = `600 12px ${css("--mono")}`;
+  for (const p of state.peaks) {
+    if (head !== null && p.x > head) continue;
+    g.fillStyle = p.kind === "prime" ? C.prime : p.kind === "power" ? C.power : C.ghost;
+    g.fillText(p.kind === "ghost" ? p.x.toFixed(1) : String(p.n), X(p.x), Math.max(12, Y(p.y) - 6));
+  }
+}
+
+// ---------- audio ----------
+// One AudioContext; each playback is a "session" with its own bus, so Stop fades and severs
+// everything it scheduled (no stray notes from an old bar). The drone is one persistent bank of
+// oscillators whose gains are ramped when N changes (no oscillator churn while dragging).
+let audio = null, session = null, transport = 0;
+function makeAudio() {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const master = ctx.createGain(); master.gain.value = 0.8;
+  const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 3;
+  const verb = ctx.createConvolver(), wet = ctx.createGain(); wet.gain.value = 0.28;
+  const len = Math.floor(ctx.sampleRate * 2.6), ir = ctx.createBuffer(2, len, ctx.sampleRate);
+  for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); let s = 0; for (let i = 0; i < len; i++) { s = 0.6 * s + 0.4 * (Math.random() * 2 - 1); d[i] = s * Math.exp(-6.9 * i / len); } }
+  verb.buffer = ir;
+  const bus = ctx.createGain(); bus.connect(master); bus.connect(verb); verb.connect(wet); wet.connect(master);
+  master.connect(comp); comp.connect(ctx.destination);
+  return { ctx, bus };
+}
+function ks(freq, dur, bright, t60) {
+  const ctx = audio.ctx, sr = ctx.sampleRate, n = Math.floor(dur * sr), buf = ctx.createBuffer(1, n, sr), y = buf.getChannelData(0);
+  const period = sr / freq, p = Math.max(2, Math.floor(period - 0.5)), f = Math.min(1, Math.max(0, period - p - 0.5));
+  const w0 = 2 * Math.PI * freq / sr;
+  const hr = 0.5 * (1 - f) + 0.5 * Math.cos(w0) + 0.5 * f * Math.cos(2 * w0), hi = -0.5 * Math.sin(w0) - 0.5 * f * Math.sin(2 * w0);
+  const g = Math.min(Math.pow(10, -3 / (t60 * freq)) / Math.max(Math.hypot(hr, hi), 1e-6), 0.9999);
+  const pole = (1 - bright) * 0.9; let lp = 0, mean = 0;
+  const line = new Float32Array(n + p + 2);
+  for (let i = 0; i < p + 2; i++) { lp = (1 - pole) * (Math.random() * 2 - 1) + pole * lp; line[i] = lp; mean += lp; }
+  mean /= p + 2; for (let i = 0; i < p + 2; i++) line[i] -= mean;
+  const h0 = g * 0.5 * (1 - f), h1 = g * 0.5, h2 = g * 0.5 * f;
+  for (let i = p + 2; i < line.length; i++) line[i] = h0 * line[i - p] + h1 * line[i - p - 1] + h2 * line[i - p - 2];
+  let peak = 0; for (let i = 0; i < n; i++) { y[i] = line[i + p + 2]; peak = Math.max(peak, Math.abs(y[i])); }
+  const fade = Math.floor(0.01 * sr), attack = Math.max(1, Math.floor(0.0015 * sr));
+  for (let i = 0; i < n; i++) { y[i] /= peak || 1; if (i < attack) y[i] *= i / attack; if (i > n - fade) y[i] *= (n - i) / fade; }
+  return buf;
+}
+function newSession() {
+  const ctx = audio.ctx, bus = ctx.createGain(); bus.gain.value = 1; bus.connect(audio.bus);
+  const droneOut = ctx.createGain(); droneOut.gain.value = 0; droneOut.connect(bus);
+  const bank = [];
+  for (let k = 0; k < Math.min(DRONE_PARTIALS, GAMMAS.length); k++) {
+    const f = DRONE_BASE * GAMMAS[k] / GAMMAS[0]; if (f > 5000) break;
+    const o = ctx.createOscillator(), gn = ctx.createGain(); o.frequency.value = f; gn.gain.value = 0;
+    o.connect(gn); gn.connect(droneOut); o.start(); bank.push({ o, gn, amp: Math.hypot(0.5, GAMMAS[0]) / Math.hypot(0.5, GAMMAS[k]) });
+  }
+  return { bus, droneOut, bank, notes: [] };
+}
+function setDrone(N) { // ramp partial gains: the bank never changes size
+  const t = audio.ctx.currentTime, n = Math.min(N, session.bank.length);
+  let sum = 0; for (let k = 0; k < n; k++) sum += session.bank[k].amp ** 2;
+  session.bank.forEach((b, k) => b.gn.gain.setTargetAtTime(k < n ? b.amp : 0, t, 0.08));
+  session.droneOut.gain.setTargetAtTime(0.16 / Math.sqrt(Math.max(sum, 1)), t, 0.15);
+}
+function endSession(s) {
+  if (!s) return;
+  const t = audio.ctx.currentTime;
+  s.bus.gain.cancelScheduledValues(t); s.bus.gain.setValueAtTime(s.bus.gain.value, t); s.bus.gain.linearRampToValueAtTime(0, t + 0.08);
+  for (const nt of s.notes) { try { nt.stop(t + 0.1); } catch (e) { /* already stopped */ } }
+  for (const b of s.bank) { try { b.o.stop(t + 0.1); } catch (e) { /* already stopped */ } }
+  setTimeout(() => s.bus.disconnect(), 200);
+}
+function strike(p, when) {
+  const ctx = audio.ctx, out = ctx.createGain(), pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+  out.gain.value = Math.min(p.y, 1.3) * (p.kind === "ghost" ? 0.3 : p.kind === "power" ? 0.38 : 0.55);
+  const dest = session.bus;
+  if (pan) { pan.pan.value = Math.max(-0.85, Math.min(0.85, (fold(Math.max(p.n, 1)) - 1.5) * 1.5)); out.connect(pan); pan.connect(dest); } else out.connect(dest);
+  const sources = [];
+  if (p.kind === "power") {
+    const car = ctx.createOscillator(), mod = ctx.createOscillator(), mg = ctx.createGain(), env = ctx.createGain();
+    car.frequency.value = p.freq * 2; mod.frequency.value = p.freq * 2.8;
+    mg.gain.setValueAtTime(p.freq * 4.4, when); mg.gain.exponentialRampToValueAtTime(1, when + 3);
+    env.gain.setValueAtTime(0.0001, when); env.gain.exponentialRampToValueAtTime(1, when + 0.004); env.gain.exponentialRampToValueAtTime(0.001, when + 3);
+    mod.connect(mg); mg.connect(car.frequency); car.connect(env); env.connect(out);
+    car.start(when); mod.start(when); car.stop(when + 3.2); mod.stop(when + 3.2); sources.push(car, mod);
+  } else {
+    const src = ctx.createBufferSource();
+    src.buffer = p.kind === "ghost" ? ks(p.freq, 1.2, 0.25, 0.8) : ks(p.freq, 3.0, 0.65, 2.8);
+    src.connect(out); src.start(when); sources.push(src);
+  }
+  sources[0].onended = () => { out.disconnect(); if (pan) pan.disconnect(); };
+  for (const s of sources) { s.when = when; session.notes.push(s); }
+}
+function scheduleFrom(barStart, fromX) { // strike the current peaks that lie ahead of fromX
+  for (const p of state.peaks) if (p.x >= fromX) strike(p, barStart + (p.x - X0) / (X1 - X0) * BAR);
+}
+function cancelFuture() { // cancel notes not yet started (used when N changes mid-bar)
+  const t = audio.ctx.currentTime;
+  session.notes = session.notes.filter(s => { if (s.when > t + 0.02) { try { s.stop(); } catch (e) { /* not started */ } return false; } return true; });
+}
+let timer = null, raf = 0;
+async function play(mode) {
+  const token = ++transport;
+  if (!audio) audio = makeAudio();
+  try { if (audio.ctx.state !== "running") await audio.ctx.resume(); } catch (e) { /* reported below */ }
+  if (token !== transport) return; // a newer Play/Stop happened while we waited
+  if (audio.ctx.state !== "running") { el("status").textContent = "Audio is blocked by the browser. Tap Play again."; return; }
+  halt();
+  session = newSession();
+  state.mode = mode; state.playing = true; state.fibIndex = 0;
+  if (mode === "build") setN(FIB[0], false);
+  setDrone(state.N);
+  state.barStart = audio.ctx.currentTime + 0.1; state.nextBar = state.barStart + BAR + GAP;
+  scheduleFrom(state.barStart, X0);
+  el("stop").disabled = false;
+  el("status").textContent = mode === "build" ? `Bar 1 of ${FIB.length}: 1 zero` : `Playing x = 1.5 → 31.5 with ${state.N} zeros`;
+  timer = setInterval(tick, 40);
+  const loop = () => { draw(); if (state.playing) raf = requestAnimationFrame(loop); };
+  raf = requestAnimationFrame(loop);
+}
+function tick() { // lookahead scheduler: bars start exactly BAR + GAP apart on the audio clock
+  const now = audio.ctx.currentTime;
+  if (audio.ctx.state !== "running") { stop(true); el("status").textContent = "Audio was interrupted. Press Play to continue."; return; }
+  if (now < state.nextBar - 0.25) return;
+  if (state.mode === "build" && state.fibIndex < FIB.length - 1) {
+    state.fibIndex++; setN(FIB[state.fibIndex], false); setDrone(state.N);
+    state.barStart = state.nextBar; state.nextBar += BAR + GAP;
+    scheduleFrom(state.barStart, X0);
+    el("status").textContent = `Bar ${state.fibIndex + 1} of ${FIB.length}: ${state.N} zeros`;
+  } else if (now >= state.nextBar - GAP) {
+    stop(false);
+  }
+}
+function halt() { clearInterval(timer); cancelAnimationFrame(raf); if (session) endSession(session); session = null; state.playing = false; }
+function stop(silent) {
+  transport++; halt(); el("stop").disabled = true;
+  writeHash(state.N); // after a build-up the link matches what is on screen
+  if (!silent) el("status").textContent = "Stopped. Change the zeros and play again.";
+  draw();
+}
+function writeHash(n) { // shareable link: #zeros-13 (plain #name; the host mirrors location.hash)
+  const h = `#zeros-${n}`;
+  if (location.hash !== h) { try { location.hash = h; } catch (e) { /* sandboxed: ignore */ } }
+}
+function readHash() {
+  const m = /^#zeros-(\d{1,3})$/.exec(location.hash);
+  return m ? Math.min(200, Math.max(1, +m[1])) : null;
+}
+function setN(n, fromUser) {
+  state.N = n; el("nz").value = n; recompute();
+  if (fromUser && state.playing && session) { // retune the rest of the bar from the playhead on
+    setDrone(n); cancelFuture(); scheduleFrom(state.barStart, currentX() + 0.05);
+  }
+}
+
+let pendingN = null;
+el("nz").addEventListener("change", e => writeHash(+e.target.value)); // on release, not every drag step
+el("nz").addEventListener("input", e => { // coalesce slider input to one update per frame
+  const first = pendingN === null; pendingN = +e.target.value;
+  if (first) requestAnimationFrame(() => { const n = pendingN; pendingN = null; setN(n, true); });
+});
+el("play").addEventListener("click", () => play("bar"));
+el("build").addEventListener("click", () => play("build"));
+el("stop").addEventListener("click", () => stop(false));
+el("waves").addEventListener("change", draw);
+window.addEventListener("hashchange", () => { const n = readHash(); if (n && n !== state.N) setN(n, true); });
+window.addEventListener("resize", draw);
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+if (document.fonts) document.fonts.ready.then(draw);
+{ const n = readHash(); if (n) { state.N = n; el("nz").value = n; } }
+recompute();
+</script>
+
+</body>
+</html>

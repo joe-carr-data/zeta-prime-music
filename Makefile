@@ -1,5 +1,5 @@
 # Every deliverable builds from a clean clone: `make all` (needs ffmpeg for video/clips).
-.PHONY: install test lint render proposals literal explain video clips web hero all
+.PHONY: install test lint render proposals literal explain video clips web hero site all
 
 OUT := output
 PROP := $(OUT)/proposals
@@ -53,6 +53,9 @@ clips: render $(PROP)/B_prime_pulse.wav
 
 web:
 	uv run python scripts/build_web.py
+
+site: web
+	uv run python scripts/build_web.py docs/demo.html --standalone
 
 hero:
 	uv run zeta-music animate -o docs/media/hero.gif --mp4 $(OUT)/hero.mp4

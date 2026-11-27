@@ -50,3 +50,9 @@ def test_web_demo_peaks_match_python_engine(tmp_path, n):
     idx, _ = find_peaks(s, prominence=0.18, height=0.18)
     assert len(js_x) == idx.size
     np.testing.assert_allclose(js_x, x[idx], atol=0.03)  # JS refines peaks sub-grid
+
+
+def test_standalone_build_is_a_full_document(tmp_path):
+    html = _build_module().build(tmp_path / "demo.html", standalone=True).read_text()
+    assert html.startswith("<!doctype html>") and html.rstrip().endswith("</html>")
+    assert html.count("<head>") == 1 and html.count("<body>") == 1 and 'lang="en"' in html

@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>For Musicians · Zeta Prime Music</title>
+<meta name="description" content="How Critical Strip is built: tuning, harmony, rhythm, dynamics and form, with the mathematics behind every note.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="assets/site.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a0e16'/%3E%3Cpath d='M4 22h4l2-14 2 14h3l2-9 2 9h3l2-5 2 5h2' fill='none' stroke='%232dd4bf' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+  .doc-hero { background: var(--night); color: var(--night-ink); padding-block: 40px 48px; }
+  .doc-hero h1 { font: 700 clamp(34px, 5.5vw, 58px)/1.02 var(--display); letter-spacing: -0.02em; margin: 8px 0 14px; text-wrap: balance; }
+  .doc-hero p { color: var(--night-muted); max-width: 60ch; margin: 0; font-size: 18px; }
+  .map td:first-child { white-space: nowrap; }
+  .sieve { display: grid; grid-template-columns: repeat(30, minmax(0, 1fr)); gap: 3px; margin: 8px 0 4px; }
+  .sieve div { aspect-ratio: 1 / 1.6; border-radius: 4px; background: var(--grid); display: flex; align-items: flex-end; justify-content: center; font: 600 10px var(--mono); color: var(--soft); padding-bottom: 3px; }
+  .sieve .P { background: var(--prime); color: var(--on-accent); }
+  .sieve .B { background: var(--power); color: var(--on-accent); opacity: .85; }
+  @media (max-width: 640px) { .sieve div { font-size: 0; } }
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; color: var(--muted); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="./"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M2 22h4l2-14 2 14h3l2-9 2 9h3l2-5 2 5h4" fill="none" stroke="#2dd4bf" stroke-width="2.4" stroke-linejoin="round"/></svg>Zeta Prime Music</a>
+    <nav class="nav" aria-label="Site">
+      <a href="./">Home</a>
+      <a href="./#listen">Listen</a>
+      <a href="demo.html">Instrument</a>
+      <a href="musicians.html" aria-current="page">For musicians</a>
+      <a href="https://github.com/joe-carr-data/zeta-prime-music">Code</a>
+    </nav>
+  </div>
+</header>
+
+<div class="doc-hero">
+  <div class="wrap">
+    <p class="eyebrow">Guide for musicians</p>
+    <h1>How <i>Critical Strip</i> is made</h1>
+    <p>Tuning, harmony, rhythm, dynamics and form, with just enough mathematics to see where every note comes from. No note is placed by hand: the composer's decisions are the mappings, and the mathematics fills in the rest.</p>
+  </div>
+</div>
+
+<div class="wrap doc">
+  <nav class="toc" aria-label="Contents">
+    <ol>
+      <li><a href="#idea">1 · The idea</a></li>
+      <li><a href="#drone">2 · The drone: zeros as a spectrum</a></li>
+      <li><a href="#melody">3 · The melody: primes as harmonics</a></li>
+      <li><a href="#harmony">4 · How the two fit</a></li>
+      <li><a href="#tuning">5 · Tuning as a process</a></li>
+      <li><a href="#rhythm">6 · Rhythm: a sieve</a></li>
+      <li><a href="#dynamics">7 · Dynamics from arithmetic</a></li>
+      <li><a href="#form">8 · Form</a></li>
+      <li><a href="#sound">9 · Orchestration</a></li>
+      <li><a href="#yours">10 · Make your own</a></li>
+      <li><a href="#glossary">11 · Glossary</a></li>
+    </ol>
+  </nav>
+
+  <article class="prose">
+    <h2 id="idea">1 · The idea</h2>
+    <p>Riemann's explicit formula writes the primes as a sum of waves. Each nontrivial zero of the zeta function, ρ = ½ + iγ, contributes one wave, cos(γ ln x), along the number line. One zero gives a smooth wobble. Add a few hundred and the waves cancel almost everywhere, except at 2, 3, 4, 5, 7, 8, 9, 11, 13 …, where they pile up into sharp spikes: the primes (tall) and the prime powers (shorter).</p>
+    <div class="table-wrap"><table class="map">
+      <thead><tr><th>In the maths</th><th>In the music</th></tr></thead>
+      <tbody>
+        <tr><td>a zero γ</td><td>a sustained partial in the <b>drone</b></td></tr>
+        <tr><td>a spike at a prime p</td><td>a <span class="p">plucked string</span></td></tr>
+        <tr><td>a spike at a prime power p<sup>k</sup></td><td>a softer <span class="pp">bell</span></td></tr>
+        <tr><td>a spike not yet on an integer</td><td>an out-of-tune <b>ghost note</b></td></tr>
+        <tr><td>the number of zeros used</td><td>how in tune the music is</td></tr>
+        <tr><td>moving along the number line</td><td>time</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout">The central gesture: the same bar is replayed while zeros are added. You hear wrong notes slide into tune until the bar plays the primes exactly.</div>
+
+    <h2 id="drone">2 · The drone: zeros as a spectrum</h2>
+    <p>Each zero becomes a sine partial at <code>f = 82.41 Hz × γ / γ₁</code>, so the first zero is E2 (the lowest guitar string) and every other zero keeps its exact ratio to it. The ratios are <b>not</b> a harmonic series, so the drone is inharmonic, like a bell or a gong. That is why it sounds metallic.</p>
+    <figure class="figure">
+      <svg id="spectrum" viewBox="0 0 760 250" role="img" aria-label="The first 40 zeros as drone partials on a cents scale above E2, with equal-tempered note names for reference; bar height is the partial's loudness 1 over the absolute value of rho."></svg>
+      <figcaption>The first 40 zeros as partials above E2. Bar height is the loudness each zero gets in the formula, 1/|ρ|. Grey lines are equal-tempered notes. The partials crowd together as they rise.</figcaption>
+    </figure>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Zero</th><th>γ</th><th>Ratio to γ₁</th><th>Cents above E2</th><th>Frequency</th><th>Nearest note</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td class="num">14.135</td><td class="num">1.000</td><td class="num">0</td><td class="num">82.4 Hz</td><td>E2</td></tr>
+        <tr><td class="num">2</td><td class="num">21.022</td><td class="num">1.487</td><td class="num">687</td><td class="num">122.6 Hz</td><td>B2 −13¢</td></tr>
+        <tr><td class="num">3</td><td class="num">25.011</td><td class="num">1.770</td><td class="num">988</td><td class="num">145.8 Hz</td><td>D3 −12¢</td></tr>
+        <tr><td class="num">4</td><td class="num">30.425</td><td class="num">2.153</td><td class="num">1327</td><td class="num">177.4 Hz</td><td>F3 +27¢</td></tr>
+        <tr><td class="num">5</td><td class="num">32.935</td><td class="num">2.330</td><td class="num">1464</td><td class="num">192.0 Hz</td><td>G3 −35¢</td></tr>
+        <tr><td class="num">6</td><td class="num">37.586</td><td class="num">2.659</td><td class="num">1693</td><td class="num">219.1 Hz</td><td>A3 −7¢</td></tr>
+        <tr><td class="num">7</td><td class="num">40.919</td><td class="num">2.895</td><td class="num">1840</td><td class="num">238.6 Hz</td><td>B♭3 +40¢</td></tr>
+        <tr><td class="num">8</td><td class="num">43.327</td><td class="num">3.065</td><td class="num">1939</td><td class="num">252.6 Hz</td><td>B3 +39¢</td></tr>
+      </tbody>
+    </table></div>
+    <p><b>It gets denser as it rises.</b> Near the bottom the zeros are about 7.8 units of γ apart, near γ = 100 about 2.3, near γ = 400 about 1.5 (the average spacing is 2π / ln(γ/2π)). The low partials stand apart as a chord; the high ones crowd into a shimmering cluster.</p>
+    <p><b>Zeros avoid each other.</b> Their spacings follow the same statistics as the energy levels of heavy atomic nuclei (the GUE law of random matrices): two zeros almost never sit very close together, so the cluster has fewer very slow beats than a random cluster of the same density.</p>
+    <p>An observation rather than a design choice: the first six zeros land near <b>E, B, D, F, G, A</b>, an E minor seventh with an added 11th and a flat 9th, the colour of the Phrygian mode. Since each zero's loudness is 1/|ρ|, this low chord dominates what you hear. Each partial also has a slow tremolo that follows its own wave cos(γ ln x) at the current point on the number line; higher zeros pulse faster.</p>
+
+    <h2 id="melody">3 · The melody: primes as harmonics</h2>
+    <p>Every spike sits on a whole number n. The piece hears n as <b>the n-th harmonic of G2 (98 Hz)</b>, folded down by octaves into one register, so the primes become the prime-limit intervals of just intonation.</p>
+    <figure class="figure">
+      <svg id="clock" viewBox="0 0 760 420" role="img" aria-label="Interval clock: one octave as a circle of 1200 cents starting at G, with the twelve equal-tempered notes as ticks and the primes and prime powers up to 31 placed at their exact just-intonation positions."></svg>
+      <figcaption>The octave as a clock, starting at G. Grey ticks are the twelve equal-tempered notes; red dots are primes, blue dots prime powers, at their exact positions. 3 sits almost on D, 5 a little flat of B, 7, 11 and 13 fall between the keys.</figcaption>
+    </figure>
+    <div class="table-wrap"><table>
+      <thead><tr><th>n</th><th>Kind</th><th>Interval above G</th><th>Cents</th><th>Heard as</th><th>Level</th></tr></thead>
+      <tbody>
+        <tr><td class="num p">2</td><td>prime</td><td>octave (tonic)</td><td class="num">0</td><td>G2</td><td class="num">0 dB</td></tr>
+        <tr><td class="num p">3</td><td>prime</td><td>perfect fifth 3/2</td><td class="num">702</td><td>D3 +2¢</td><td class="num">0 dB</td></tr>
+        <tr><td class="num pp">4</td><td>2²</td><td>octave</td><td class="num">0</td><td>G3 (bell)</td><td class="num">−6 dB</td></tr>
+        <tr><td class="num p">5</td><td>prime</td><td>major third 5/4</td><td class="num">386</td><td>B2 −14¢</td><td class="num">0 dB</td></tr>
+        <tr><td class="num p">7</td><td>prime</td><td>harmonic seventh 7/4</td><td class="num">969</td><td>F4 −31¢</td><td class="num">0 dB</td></tr>
+        <tr><td class="num pp">8</td><td>2³</td><td>octave</td><td class="num">0</td><td>G4 (bell)</td><td class="num">−9.5 dB</td></tr>
+        <tr><td class="num pp">9</td><td>3²</td><td>major ninth 9/8</td><td class="num">204</td><td>A4 +4¢ (bell)</td><td class="num">−6 dB</td></tr>
+        <tr><td class="num p">11</td><td>prime</td><td>undecimal tritone 11/8</td><td class="num">551</td><td>between C and C♯</td><td class="num">0 dB</td></tr>
+        <tr><td class="num p">13</td><td>prime</td><td>neutral sixth 13/8</td><td class="num">841</td><td>between E♭ and E</td><td class="num">0 dB</td></tr>
+        <tr><td class="num pp">16</td><td>2⁴</td><td>octave</td><td class="num">0</td><td>G4 (bell)</td><td class="num">−12 dB</td></tr>
+        <tr><td class="num p">17</td><td>prime</td><td>small semitone 17/16</td><td class="num">105</td><td>G♯3 +5¢</td><td class="num">0 dB</td></tr>
+        <tr><td class="num p">19</td><td>prime</td><td>minor third 19/16</td><td class="num">298</td><td>B♭3 −2¢</td><td class="num">0 dB</td></tr>
+        <tr><td class="num p">23</td><td>prime</td><td>23/16</td><td class="num">628</td><td>C♯4 +28¢</td><td class="num">0 dB</td></tr>
+        <tr><td class="num pp">25</td><td>5²</td><td>augmented fifth 25/16</td><td class="num">773</td><td>E♭5 −27¢ (bell)</td><td class="num">−6 dB</td></tr>
+        <tr><td class="num pp">27</td><td>3³</td><td>Pythagorean sixth 27/16</td><td class="num">906</td><td>E5 +6¢ (bell)</td><td class="num">−9.5 dB</td></tr>
+        <tr><td class="num p">29</td><td>prime</td><td>29/16</td><td class="num">1030</td><td>F4 +30¢</td><td class="num">0 dB</td></tr>
+        <tr><td class="num p">31</td><td>prime</td><td>31/16, quarter-tone below the octave</td><td class="num">1145</td><td>F♯4 +45¢</td><td class="num">0 dB</td></tr>
+      </tbody>
+    </table></div>
+    <ul>
+      <li><b>2, 3, 5 spell a G major triad</b> in pure just intonation: the fifth 2¢ wide of equal temperament, the third 14¢ flat and sweeter.</li>
+      <li><b>7, 11, 13 leave the tempered world</b>: a blues-like flat seventh, a quarter-tone tritone and a neutral sixth. These give the melody its colour.</li>
+      <li><b>17, 19, 23, 29, 31</b> land near chromatic notes, some within a few cents, some a quarter-tone away.</li>
+      <li><b>Prime powers are literally overtones of their prime</b>: 4, 8, 16 are the tonic in higher octaves, 9 the ninth, 27 the Pythagorean sixth.</li>
+    </ul>
+
+    <h2 id="harmony">4 · How the two pitch worlds fit</h2>
+    <p>The drone's root E2 and the melody's tonic G2 are <b>300 cents apart, exactly a minor third</b>. Put the melody's G–B–D over the drone's E and you get <b>E minor 7</b> (E–G–B–D), the same chord the first zeros sketch on their own.</p>
+    <div class="callout">So the piece hovers between E minor (the drone) and G major (the plucked primes), the relative-key pair, while the higher primes and the inharmonic partials keep both from settling into a common-practice key.</div>
+
+    <h2 id="tuning">5 · Tuning as a process</h2>
+    <p>With few zeros the spikes are broad and their peaks sit between the integers. The piece plays each peak at its exact position, so it comes out as a microtonal ghost. In the first bar, with a single zero:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Peak at x</th><th>Played as</th><th>Becomes, with enough zeros</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1.95</td><td>≈ G2</td><td><span class="p">2</span> (G2)</td></tr>
+        <tr><td class="num">3.03</td><td>≈ D3</td><td><span class="p">3</span> (D3)</td></tr>
+        <tr><td class="num">4.74</td><td>B♭2 −6¢</td><td><span class="p">5</span> (B2 −14¢)</td></tr>
+        <tr><td class="num">7.39</td><td>F♯4 −37¢</td><td><span class="p">7</span> (F4 −31¢)</td></tr>
+        <tr><td class="num">11.53</td><td>C♯4 +33¢</td><td><span class="p">11</span> (C♯4 −49¢)</td></tr>
+        <tr><td class="num">18.0</td><td>A3 +4¢</td><td><span class="p">17</span> and <span class="p">19</span> split apart</td></tr>
+        <tr><td class="num">28.08</td><td>F4 −26¢</td><td><span class="p">29</span> (F4 +30¢)</td></tr>
+      </tbody>
+    </table></div>
+    <p>Each time zeros are added, the peaks narrow (their width shrinks roughly like x / N) and slide onto the integers. Ghosts that sit on no prime fade out; new peaks appear. By 34 zeros every note of the bar is a prime or prime power within a few cents. Movement II is a slow <b>tuning-in</b>: a process piece in the sense of Steve Reich's phase music, where the process is mathematical convergence. <a href="demo.html">Try it in the instrument</a>.</p>
+
+    <h2 id="rhythm">6 · Rhythm: a sieve on a 30-step grid</h2>
+    <p>The bar sweeps x from 1.5 to 31.5 in 8 seconds, so every whole number has its own moment: 3.75 numbers per second, a <b>30-step sequencer</b>. The active steps are the primes and prime powers.</p>
+    <figure class="figure">
+      <div class="sieve" id="sieve" role="img" aria-label="30-step grid from 2 to 31: primes and prime powers are filled, other steps empty."></div>
+      <div class="legend"><span><i style="background:var(--prime)"></i>pluck on a prime</span><span><i style="background:var(--power)"></i>bell on a prime power</span><span><i style="background:var(--grid)"></i>silent step</span></div>
+      <figcaption>A sieve rhythm in Xenakis's sense, shaped like the primes: busy at the start, thinning out further along (23 to 29 is six steps), because primes thin out like 1/ln x. Inside each bar the music decelerates.</figcaption>
+    </figure>
+    <p>Movement III leaves the bar and sweeps x exponentially from 31.5 to 260, so each second covers the same <i>ratio</i> of the number line. Measured that way primes get denser further out, so the notes speed up: an accelerando built into the number line.</p>
+
+    <h2 id="dynamics">7 · Dynamics come from arithmetic</h2>
+    <p>The height of a spike, after normalisation, is Λ(n)/ln n: <b>1 at a prime, ½ at a square, ⅓ at a cube</b>. That is used directly as loudness: primes at full level, squares (4, 9, 25) at −6 dB, cubes (8, 27) at −9.5 dB, and 16 at −12 dB (often too quiet to be detected at all, honestly, because its spike really is the smallest). The accent pattern of every bar is the arithmetic of its numbers.</p>
+    <p>With a fixed number of zeros, primes far along the number line are resolved less sharply and come out softer, about −2.6 dB by x ≈ 220 with 500 zeros, so movement III fades slightly towards the edge of what the zeros can resolve.</p>
+
+    <h2 id="form">8 · Form</h2>
+    <div class="timeline" role="img" aria-label="Form: I 16 s, II 96 s, III 44 s, IV 16 s, V 32 s">
+      <div style="flex:16">I<span>0:00</span></div>
+      <div style="flex:96">II · Adding zeros<span>0:16</span></div>
+      <div style="flex:44">III · Further out<span>1:52</span></div>
+      <div class="peak" style="flex:16">IV<span>2:36</span></div>
+      <div style="flex:32">V<span>2:52</span></div>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Movement</th><th>Number line</th><th>Zeros</th><th>Function</th></tr></thead>
+      <tbody>
+        <tr><td>I · Pole</td><td>1.2 → 3.2</td><td class="num">0 → 1</td><td>introduction: drone only; the first zero fades in</td></tr>
+        <tr><td>II · Adding zeros</td><td>the bar, 12 times</td><td class="num">1, 2, 3, 5 … 200</td><td>the process: ghosts tune into primes (Fibonacci steps keep each change audible)</td></tr>
+        <tr><td>III · Further out</td><td>31.5 → 260, exponential</td><td class="num">200 → 500</td><td>development: accelerando, rising register</td></tr>
+        <tr><td>IV · Critical line</td><td>the bar, twice</td><td class="num">500</td><td>climax: the most exact version of the bar</td></tr>
+        <tr><td>V · Reflection</td><td>the bar, 4 times</td><td class="num">34, 8, 2, 1</td><td>coda: zeros are removed and the primes dissolve back into waves</td></tr>
+      </tbody>
+    </table></div>
+    <p>The arc is order emerging from noise and returning to it, framed by the drone. The alternative versions change only these parameters: <i>Prime Pulse</i> uses a 5-second bar; <i>Deep Strip</i> a 12-second bar with the drone an octave lower; <i>Critical Strip (revised)</i> turns IV into a call and response and runs V backwards so the piece ends on 3 then 2.</p>
+
+    <h2 id="sound">9 · Orchestration and sound design</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Voice</th><th>Instrument</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>zeros</td><td>additive sine drone, one partial per zero</td><td>the zeros are a spectrum</td></tr>
+        <tr><td><span class="p">primes</span></td><td>Karplus–Strong plucked string, 2.8 s decay at every pitch</td><td>adding zeros is like playing chords on a guitar</td></tr>
+        <tr><td><span class="pp">prime powers</span></td><td>two-operator FM bell an octave up (ratio 1.4, itself inharmonic)</td><td>the "overtones" of their prime</td></tr>
+        <tr><td>ghosts</td><td>dull, short pluck at −5 dB</td><td>wrong notes should sound tentative</td></tr>
+        <tr><td>the sum itself</td><td>band-passed noise shaped by the spike curve</td><td>you hear the waveform breathe</td></tr>
+        <tr><td>main term</td><td>low sine, E1</td><td>the smooth part of the formula, with no primes in it</td></tr>
+      </tbody>
+    </table></div>
+    <p>Mix: drone −13 dB, plucks −5 dB, bells 4 dB under the plucks, breath −28 dB, low sine −21 dB, a 3.6 s convolution reverb at 24 % wet, soft saturation and a −1 dBFS ceiling.</p>
+
+    <h2 id="yours">10 · Make your own</h2>
+    <p><b>With your own instruments.</b> Every render writes a MIDI file. Each note carries its exact microtonal pitch as a pitch bend (±2 semitones) on its own channel while it sounds, so it works with any MPE synth. Time is in seconds (60 BPM).</p>
+    <p><b>Writing a score.</b> A score is a TOML file; musically its parameters mean:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Parameter</th><th>Musical meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>loop</code></td><td>bar length (tempo): 8 s gives 3.75 numbers per second</td></tr>
+        <tr><td><code>x_start</code>, <code>x_end</code></td><td>which stretch of the number line the bar plays</td></tr>
+        <tr><td><code>zeros_steps</code></td><td>how in tune each bar is; the sequence is the shape of the process</td></tr>
+        <tr><td><code>sweep = "exp"</code></td><td>accelerando through the number line</td></tr>
+        <tr><td><code>pluck_base_hz</code></td><td>key of the melody, e.g. 98 Hz = G</td></tr>
+        <tr><td><code>drone_base_hz</code></td><td>root of the drone, e.g. 82.41 Hz = E</td></tr>
+        <tr><td><code>drone_gain</code>, <code>pluck_gain</code>, <code>breath_gain</code></td><td>per-section orchestration (0 mutes a voice)</td></tr>
+      </tbody>
+    </table></div>
+    <p>Try moving the melody's key against the drone: a minor third apart (the default) gives the E minor / G major ambiguity; a unison makes the drone's root the tonic of the primes; a tritone makes the two worlds clash.</p>
+
+    <h2 id="glossary">11 · Glossary</h2>
+    <div class="table-wrap"><table>
+      <tbody>
+        <tr><td><b>Zero of ζ</b></td><td>a number ρ = ½ + iγ where the zeta function vanishes; γ is its "frequency". The Riemann Hypothesis says the real part is always ½.</td></tr>
+        <tr><td><b>Explicit formula</b></td><td>the identity writing the primes as a sum of one wave per zero</td></tr>
+        <tr><td><b>Prime power</b></td><td>p<sup>k</sup> (4, 8, 9, 25, 27 …); their spikes are 1/k as tall as a prime's</td></tr>
+        <tr><td><b>Salience</b></td><td>the normalised spike height used as loudness</td></tr>
+        <tr><td><b>Ghost</b></td><td>a spike that has not yet settled on an integer</td></tr>
+        <tr><td><b>Prime limit</b></td><td>just intonation built from ratios of the primes up to a given one</td></tr>
+        <tr><td><b>Inharmonic</b></td><td>partials that are not whole multiples of a fundamental (bells, gongs, the zeros)</td></tr>
+        <tr><td><b>Cents</b></td><td>1/100 of an equal-tempered semitone; 1200 cents = one octave</td></tr>
+      </tbody>
+    </table></div>
+  </article>
+</div>
+
+<footer>
+  <div class="wrap">
+    <span>Zeta Prime Music · <a href="https://github.com/joe-carr-data/zeta-prime-music">source</a></span>
+    <span>Also on GitHub as <a href="https://github.com/joe-carr-data/zeta-prime-music/blob/main/docs/FOR_MUSICIANS.md">FOR_MUSICIANS.md</a></span>
+  </div>
+</footer>
+
+<script>
+const GAMMA = [14.1347,21.022,25.0109,30.4249,32.9351,37.5862,40.9187,43.3271,48.0052,49.7738,52.9703,56.4462,59.347,60.8318,65.1125,67.0798,69.5464,72.0672,75.7047,77.1448,79.3374,82.9104,84.7355,87.4253,88.8091,92.4919,94.6513,95.8706,98.8312,101.3179,103.7255,105.4466,107.1686,111.0295,111.8747,114.3202,116.2267,118.7908,121.3701,122.9468];
+const NOTES = ["C","C♯","D","E♭","E","F","F♯","G","G♯","A","B♭","B"];
+const v = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const el = (tag, attrs, text) => { const e = document.createElementNS("http://www.w3.org/2000/svg", tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; return e; };
+
+function spectrum() {
+  const svg = document.getElementById("spectrum"); svg.replaceChildren();
+  const L = 40, R = 740, T = 20, B = 210, maxC = 1200 * Math.log2(GAMMA.at(-1) / GAMMA[0]) + 60;
+  const X = c => L + c / maxC * (R - L);
+  for (let s = 0; s * 100 <= maxC; s++) { // equal-tempered grid from E2
+    const x = X(s * 100), name = NOTES[(4 + s) % 12], oct = 2 + Math.floor((4 + s) / 12);
+    svg.append(el("line", { x1: x, x2: x, y1: T, y2: B, stroke: v("--grid"), "stroke-width": name === "E" ? 1.4 : 0.7 }));
+    if (s % 12 === 0) svg.append(el("text", { x, y: B + 18, "text-anchor": "middle", "font-size": 12, "font-family": v("--mono"), fill: v("--muted") }, name + oct));
+  }
+  GAMMA.forEach((g, k) => {
+    const c = 1200 * Math.log2(g / GAMMA[0]), a = Math.hypot(0.5, GAMMA[0]) / Math.hypot(0.5, g), h = a * (B - T - 10);
+    svg.append(el("rect", { x: X(c) - 2, y: B - h, width: 4, height: h, rx: 1.5, fill: v("--wave") }));
+  });
+  svg.append(el("line", { x1: L, x2: R, y1: B, y2: B, stroke: v("--rule") }));
+  svg.append(el("text", { x: L, y: 14, "font-size": 12, "font-family": v("--mono"), fill: v("--soft") }, "loudness 1/|ρ|"));
+  svg.append(el("text", { x: R, y: 245, "text-anchor": "end", "font-size": 12, "font-family": v("--mono"), fill: v("--soft") }, "pitch above E2 →"));
+}
+
+function clock() {
+  const svg = document.getElementById("clock"); svg.replaceChildren();
+  const cx = 380, cy = 210, r = 150, pos = (c, rr) => [cx + rr * Math.sin(c / 1200 * 2 * Math.PI), cy - rr * Math.cos(c / 1200 * 2 * Math.PI)];
+  svg.append(el("circle", { cx, cy, r, fill: "none", stroke: v("--rule"), "stroke-width": 1.2 }));
+  for (let s = 0; s < 12; s++) {
+    const [x1, y1] = pos(s * 100, r - 8), [x2, y2] = pos(s * 100, r + 8), [tx, ty] = pos(s * 100, r + 26);
+    svg.append(el("line", { x1, y1, x2, y2, stroke: v("--soft"), "stroke-width": 1.4 }));
+    svg.append(el("text", { x: tx, y: ty + 4, "text-anchor": "middle", "font-size": 13, "font-family": v("--mono"), fill: v("--muted") }, NOTES[(7 + s) % 12]));
+  }
+  const pts = [[2,0,1],[3,702,1],[5,386,1],[7,969,1],[11,551,1],[13,841,1],[17,105,1],[19,298,1],[23,628,1],[29,1030,1],[31,1145,1],[9,204,0],[25,773,0],[27,906,0]];
+  for (const [n, c, prime] of pts) {
+    const rr = prime ? r - 34 : r - 62, [x, y] = pos(c, rr), [lx, ly] = pos(c, rr - 22);
+    svg.append(el("circle", { cx: x, cy: y, r: prime ? 7 : 5.5, fill: prime ? v("--prime") : v("--power") }));
+    svg.append(el("text", { x: lx, y: ly + 4, "text-anchor": "middle", "font-size": 12, "font-weight": 700, "font-family": v("--mono"), fill: prime ? v("--prime") : v("--power") }, n));
+  }
+  svg.append(el("text", { x: cx, y: cy - 4, "text-anchor": "middle", "font-size": 13, "font-family": v("--display"), "font-weight": 700, fill: v("--ink") }, "one octave"));
+  svg.append(el("text", { x: cx, y: cy + 14, "text-anchor": "middle", "font-size": 12, "font-family": v("--mono"), fill: v("--soft") }, "from G, 1200 cents"));
+  svg.append(el("text", { x: 20, y: 30, "font-size": 12, "font-family": v("--mono"), fill: v("--soft") }, "2, 4, 8, 16 sit on G"));
+}
+
+function sieve() {
+  const primes = new Set([2,3,5,7,11,13,17,19,23,29,31]), powers = new Set([4,8,9,16,25,27]);
+  const box = document.getElementById("sieve"); box.replaceChildren();
+  for (let n = 2; n <= 31; n++) {
+    const d = document.createElement("div"); d.textContent = n;
+    if (primes.has(n)) d.className = "P"; else if (powers.has(n)) d.className = "B";
+    box.append(d);
+  }
+}
+function drawAll() { spectrum(); clock(); sieve(); }
+drawAll();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", drawAll);
+</script>
+</body>
+</html>
