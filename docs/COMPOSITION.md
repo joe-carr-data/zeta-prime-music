@@ -15,8 +15,8 @@ note is a peak of the truncated sum ψ'_N(x), and every drone partial is a zero.
 | peak height (normalised) → salience ≈ Λ(n)/log n | velocity | primes = 1, p² = ½, p³ = ⅓ — prime powers are literally quieter |
 | prime power p^k (k ≥ 2) | FM bell an octave up | the video's "overtone at 4, 8, 16, 9" |
 | peak not at a prime power | "ghost" (dull short pluck) | artefact of truncation; disappears as N grows |
-| ψ'_N(x) itself | breath (band-passed noise × salience²) | the sum, heard |
-| pole at s = 1 (the "1" in ψ') | low sine, E1 | the main term li(x) / x |
+| salience curve (clipped to 0–1.5, squared) | breath (band-passed noise) | the sum, heard |
+| pole at s = 1 (main term x of ψ(x), i.e. the "1" in ψ'(x)) | low sine, E1 | the smooth part with no primes in it |
 
 ## How accurate is "salience"?
 

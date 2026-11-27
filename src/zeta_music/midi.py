@@ -60,11 +60,20 @@ def allocate_channels(events: list[Event]) -> list[tuple[int, int, int, int, int
     return [tuple(n) for n in notes]  # type: ignore[misc]
 
 
+def midi_text(text: str) -> str:
+    """MIDI meta text is latin-1 in mido; keep what fits, transliterate the rest (ζ -> 'zeta')."""
+    import unicodedata
+
+    greek = {"ζ": "zeta", "ρ": "rho", "γ": "gamma", "ψ": "psi", "π": "pi", "Λ": "Lambda", "σ": "sigma"}
+    out = unicodedata.normalize("NFKD", "".join(greek.get(ch, ch) for ch in text))
+    return out.encode("latin-1", "ignore").decode("latin-1").strip() or "untitled"
+
+
 def write_midi(events: list[Event], path: Path, cfg: CompositionConfig) -> None:
     mid = mido.MidiFile(ticks_per_beat=PPQ)
     track = mido.MidiTrack()
     mid.tracks.append(track)
-    track.append(mido.MetaMessage("track_name", name=cfg.title, time=0))
+    track.append(mido.MetaMessage("track_name", name=midi_text(cfg.title), time=0))
     track.append(mido.MetaMessage("set_tempo", tempo=mido.bpm2tempo(BPM), time=0))
     for ch in CHANNELS:  # RPN 0: pitch bend range
         for ctl, val in ((101, 0), (100, 0), (6, int(BEND_RANGE)), (38, 0)):

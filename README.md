@@ -15,18 +15,24 @@ Inspired by *From First Principles* ep. 69 — see [docs/VIDEO_ANALYSIS.md](docs
 ```bash
 uv sync                      # Python ≥ 3.12
 make render                  # → output/critical_strip.{wav,mid,events.json,score.png}
-make literal                 # raw sonifications: the zeros' chord, and the prime clicks
+make proposals               # → output/proposals/A–E (.wav + .m4a)
+make video clips             # visualiser video + five vertical clips (needs ffmpeg)
+make web                     # interactive demo → output/web/hear-the-primes.html
 make explain                 # figure reproducing the video's argument
+make all                     # everything above from a clean clone, after lint + tests
 make test lint
 ```
 
-CLI:
+CLI (after `uv sync`; plots and video need the `plot` extra — `uv sync --extra plot` or
+`pip install '.[plot]'` — and video needs ffmpeg on PATH):
 
 ```bash
-zeta-music render compositions/critical_strip.toml -o output
-zeta-music literal {log|linear} -n 200 -d 10 -o output/x.wav
-zeta-music explain -n 200 --xmax 30
-zeta-music zeros 10
+uv run zeta-music render compositions/critical_strip.toml -o output
+uv run zeta-music literal log -n 200 -d 10 -o output/zeros_chord.wav
+uv run zeta-music literal linear -n 200 -d 10 -o output/prime_clicks.wav
+uv run zeta-music explain -n 200 --xmax 30
+uv run zeta-music video compositions/critical_strip.toml --audio output/critical_strip.wav --aspect 9:16 --start 16 --end 64
+uv run zeta-music zeros 10
 ```
 
 ## Layout

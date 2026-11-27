@@ -4,12 +4,35 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python: ["3.12", "3.13"]
+    env:
+      UV_PYTHON: ${{ matrix.python }}  # every uv command (sync AND run) uses the matrix interpreter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: sudo apt-get update && sudo apt-get install -y libsndfile1 ffmpeg
+      - run: uv sync --locked
+      - run: uv run python -c "import sys; print(sys.version); assert sys.version.startswith('${{ matrix.python }}')"
+      - run: uv run ruff check . && uv run ruff format --check .
+      - run: uv run pytest -q
+
+  wheel-smoke:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - run: sudo apt-get update && sudo apt-get install -y libsndfile1
-      - run: uv sync --python ${{ matrix.python }}
-      - run: uv run ruff check . && uv run ruff format --check .
-      - run: uv run pytest -q
+      - run: uv build --wheel
+      - name: install the wheel outside the checkout and use it
+        run: |
+          cd "$RUNNER_TEMP"
+          uv venv smoke
+          . smoke/bin/activate
+          uv pip install "$GITHUB_WORKSPACE"/dist/*.whl
+          zeta-music zeros 500 | tail -1 | grep -q "811.18435"
+          python -c "import importlib.resources as r; assert r.files('zeta_music').joinpath('py.typed').is_file()"

@@ -189,3 +189,24 @@ def test_oversampling_factor_is_monotonic_in_pitch():
     factors = [synth.oversampling_factor(f, 44100, 2.8) for f in np.arange(100.0, 2500.0, 0.5)]
     assert factors == sorted(factors)
     assert set(factors) == {1, 2, 4, 8}
+
+
+def test_non_latin_title_exports_midi(tiny_config, tmp_path):
+    """review: a title like 'ζ' crashed MIDI export after the WAV was written."""
+    import dataclasses
+
+    import mido
+
+    cfg = dataclasses.replace(tiny_config, title="ζ — Critical Strip")
+    write_outputs(render(cfg), cfg, tmp_path, "z")
+    name = next(m.name for m in mido.MidiFile(tmp_path / "z.mid") if m.type == "track_name")
+    assert name.startswith("zeta")
+
+
+def test_small_zero_counts_give_clear_errors():
+    from zeta_music.plots import plot_explainer
+
+    with pytest.raises(ValueError, match="at least 1 zero"):
+        literal("log", n_zeros=0, duration=0.1, sr=8000)
+    with pytest.raises(ValueError, match="at least 2 zeros"):
+        plot_explainer(None, n_zeros=1)

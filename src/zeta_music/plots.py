@@ -28,6 +28,8 @@ def _plt():  # type: ignore[no-untyped-def]
 def plot_explainer(out: Path, n_zeros: int = 200, xmax: float = 30.0) -> Path:
     """Four panels: single-zero oscillations, the sum of N zeros, and ψ(x) reconstruction."""
     plt = _plt()
+    if n_zeros < 2:
+        raise ValueError("explain needs at least 2 zeros (it plots the first two waves)")
     g = load_zeros(n_zeros)
     x = np.linspace(1.05, xmax, 12000)
     fig, ax = plt.subplots(4, 1, figsize=(11, 13), constrained_layout=True)
@@ -73,7 +75,8 @@ def plot_score(result: RenderResult, out: Path) -> Path:
     for kind, c in colors.items():
         ev = [e for e in result.events if e.kind == kind]
         ax[0].scatter([e.time for e in ev], [e.x for e in ev], s=8, c=c, label=kind, zorder=3)
-        ax[2].scatter([e.time for e in ev], [e.freq for e in ev], s=[4 + 20 * e.salience for e in ev], c=c, label=kind)
+        sounding = [e.freq * (2.0 if e.kind == "prime_power" else 1.0) for e in ev]  # bells sound an octave up
+        ax[2].scatter([e.time for e in ev], sounding, s=[4 + 20 * e.salience for e in ev], c=c, label=kind)
     ax[0].legend(loc="upper left")
     ax[1].plot(tl.t, tl.n_zeros, color="C2")
     ax[1].set_ylabel("active zeros N")

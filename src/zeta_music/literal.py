@@ -34,6 +34,10 @@ def literal(
     taper: Literal["none", "hann", "gauss", "fejer"] = "gauss",
 ) -> NDArray[np.float64]:
     """Return a mono float64 waveform normalised to peak 0.9."""
+    if n_zeros < 1:
+        raise ValueError("literal needs at least 1 zero")
+    if duration <= 0 or sr <= 0:
+        raise ValueError("duration and sample rate must be positive")
     g = load_zeros(n_zeros)
     n = int(duration * sr)
     tau = np.arange(n) / sr
