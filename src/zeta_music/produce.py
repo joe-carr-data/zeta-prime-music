@@ -1053,7 +1053,7 @@ def _version(dist: str) -> str | None:
 def _plugin_identity(path: str) -> dict[str, Any]:
     """Identity of an installed plugin build: a bundle's Info.plist digest (it carries the version),
     else the file's size and modification time. Sample libraries a plugin loads are not covered;
-    after a library update, render with ``--no-cache`` (or clear the cache)."""
+    after a library update, render with ``--clear-cache``."""
     p = Path(path)
     plist = p / "Contents" / "Info.plist"
     if plist.is_file():

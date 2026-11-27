@@ -210,31 +210,30 @@ convolution reverb at 24 % wet; soft saturation and a −1 dBFS peak ceiling.
 
 ## 8. The radio edit: *The Sound of the Primes*
 
-The main track takes the same mathematics and plays it with a band. Every note still comes from the
-explicit formula; what changes is tempo, arrangement and instruments
-(`compositions/commercial/critical_strip_radio_kontakt.toml`, rendered with `zeta-music produce`).
+The main track takes the same mathematics and plays it with real instruments. Every note still comes from
+the explicit formula; what changes is tempo, tuning (equal temperament), arrangement and instruments.
+There is no bass line or drum part: nothing is added that the zeros did not produce
+(`compositions/commercial/the_sound_of_the_primes.toml`, rendered with `zeta-music produce`).
 
 - **Tempo and metre: 112.5 BPM in 5/4.** One 8-second bar of the number line is exactly three bars of
   5/4, and every whole number lands on an odd sixteenth, so the primes sit on the grid.
-- **Groove:** drums on the eighth notes only. Eighths fall on the half-integers, where no prime can
-  sound, so the beat never covers a prime.
 - **Tuning: tempered.** The sampled instruments play standard pitches; the exact microtonal tuning lives
   in the original pieces.
 - **Instruments:** upright piano (primes), vibraphone (prime powers), a slow synth pad on the first
-  zeros' chord, voiced openly (zeros), electric bass on E with a sine sub, reverb, delay and bus
-  compression.
+  zeros' chord, voiced openly (zeros), reverb, delay and bus compression.
 
 | Time | Section | Zeros | What happens |
 |---|---|---|---|
 | 0:00 | Intro | 0 → 1 | the pad and the first zero |
 | 0:16 | Tuning in | 1, 2, 3, 5, 8, 13, 34, 200 | eight bars; wrong notes slide onto the primes |
-| 1:20 | Chorus | 500 | the band locks in on the exact primes |
+| 1:20 | Chorus | 500 | everything locks in on the exact primes |
 | 1:52 | Further out | 500 | x runs from 31.5 to 130: an accelerando through larger primes |
 | 2:16 | Chorus | 500 | back to the bar |
 | 2:32 | Outro | 55, 13 | the bar runs backwards while zeros are removed; it ends on 3, then 2 |
 
-Mastered to −14 LUFS for streaming. The MIDI and the score are public; the separate instrument stems
-are not distributed.
+Mastered to −14 LUFS for streaming. The score is public and `zeta-music produce … --midi-only` writes
+its MIDI; the recording needs the sampled instruments, and the separate instrument stems are not
+distributed.
 
 ## 9. Using it yourself
 

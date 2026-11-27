@@ -2,7 +2,7 @@
 
 **Source:** screen recording (3 min, 2026-11-27) of an Instagram reel from the *From First
 Principles* podcast (ffpod), Episode 69 — "Riemann and the Music of the Primes". Caption:
-*"Add the first 200 Riemann zeta zeros…"*. Transcribed with Whisper (`small`), frames sampled
+*"Add the first 200 Riemann zeta zeros…"*. Transcribed automatically, frames sampled
 every 3 s.
 
 ## What the video argues, step by step

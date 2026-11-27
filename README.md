@@ -26,17 +26,16 @@ Bernhard Riemann found that they are governed by a hidden set of numbers, the ze
 and that **each zero is a wave**. Play those waves together and wrong notes drift and wobble, then lock onto
 the primes one by one, until the whole number line is in tune.
 
-**Every note, rhythm and accent here comes from the mathematics. No one composed a single one; we only chose
-the instruments.**
+**Every note comes from the mathematics: which note, when and how loud. We chose only the instruments, the key, the tempo and the form.**
 
 > [!NOTE]
 > A proof of the Riemann Hypothesis was announced in November 2026: Levent Alpöge released a
 > claimed proof, with a formal version checked in Lean, and mathematicians are now examining it. The zeros you
-> hear have long been computed to lie on Riemann's critical line; if the proof holds, all infinitely many do.
+> hear have long been computed to lie on Riemann's critical line; if the proof holds, every nontrivial zero does.
 
 <table>
 <tr>
-<td width="25%" align="center"><a href="https://joe-carr-data.github.io/zeta-prime-music/#listen"><b>▶ Listen</b></a><br><sub><i>The Sound of the Primes</i>, 2:56: piano, vibraphone, bass and drums play only what the zeros dictate</sub></td>
+<td width="25%" align="center"><a href="https://joe-carr-data.github.io/zeta-prime-music/#listen"><b>▶ Listen</b></a><br><sub><i>The Sound of the Primes</i>, 2:56: piano and vibraphone play only the notes the zeros give them</sub></td>
 <td width="25%" align="center"><a href="https://joe-carr-data.github.io/zeta-prime-music/demo.html"><b>🎛 Play</b></a><br><sub>A web instrument: slide from 1 to 200 zeros and hear the primes come into tune</sub></td>
 <td width="25%" align="center"><a href="docs/FOR_MUSICIANS.md"><b>🎼 Read</b></a><br><sub>How every pitch, rhythm and dynamic follows from the explicit formula</sub></td>
 <td width="25%" align="center"><a href="#quick-start"><b>⌨ Build</b></a><br><sub>Regenerate every track, MIDI file and video from a clean clone</sub></td>
@@ -67,9 +66,9 @@ powers). This repo turns that interference pattern into music:
 <summary><b>The pieces</b></summary>
 
 - ***The Sound of the Primes*** (radio edit, 2:56, 112.5 BPM in 5/4): the produced version, score
-  `compositions/commercial/critical_strip_radio_kontakt.toml`.
+  `compositions/commercial/the_sound_of_the_primes.toml`.
 - ***Critical Strip*** (3:28) and ***Critical Strip (revised)*** (3:12): the original concept pieces in exact
-  microtonal tuning, where every note audibly bends into place (`compositions/`).
+  microtonal tuning, where the notes audibly move into tune from one repetition to the next (`compositions/`).
 
 </details>
 
@@ -110,7 +109,7 @@ instrument, plugin state and parameters), so a mix, FX or mastering change re-re
 and a change to one voice re-renders only that voice. Plugin voices render in parallel processes
 (`--jobs N`); `--no-cache` renders everything afresh and `zeta-music clear-cache` empties the cache.
 The key includes the plugin build and renderer versions but not the sample libraries a plugin loads:
-after updating a library, render once with `--no-cache`.
+after updating a library, render once with `--clear-cache`.
 
 ## Layout
 

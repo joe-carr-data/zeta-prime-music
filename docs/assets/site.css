@@ -3,7 +3,7 @@
    Tokens first; every colour comes from a token so both themes work. */
 :root {
   --paper: #eef2f4; --panel: #f8fafb; --grid: #dbe3e8; --rule: #b9c6ce;
-  --ink: #14212b; --muted: #566773; --soft: #7d8b96;
+  --ink: #14212b; --muted: #566773; --soft: #5f6e79;
   --prime: #c2362b; --power: #1d5fa8; --ghost: #8b98a3; --wave: #0f766e; --on-accent: #ffffff;
   --night: #0a0e16; --night-ink: #e9e6df; --night-muted: #8f99a8; --night-wave: #2dd4bf;
   --display: "Space Grotesk", "Helvetica Neue", Arial, sans-serif;

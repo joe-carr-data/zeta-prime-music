@@ -1,4 +1,12 @@
-<title>Hear the Primes</title>
+<title>Hear the Primes · Zeta Prime Music</title>
+<meta name="description" content="Slide from 1 to 200 zeros of the Riemann zeta function and hear wrong notes lock onto the prime numbers.">
+<meta property="og:title" content="Hear the Primes · Zeta Prime Music">
+<meta property="og:description" content="Slide from 1 to 200 zeros of the Riemann zeta function and hear wrong notes lock onto the prime numbers.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://joe-carr-data.github.io/zeta-prime-music/demo.html">
+<meta property="og:image" content="https://joe-carr-data.github.io/zeta-prime-music/media/sound-of-the-primes-poster.jpg">
+<meta property="og:image:alt" content="A curve of 200 zeta zeros with sharp peaks labelled at the primes">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
@@ -6,7 +14,7 @@
 :root {
   --paper: #eef2f4; --panel: #f8fafb; --grid: #d6dfe4; --rule: #b9c6ce;
   --ink: #14212b; --muted: #576874;
-  --prime: #b4233c; --power: #1d5fa8; --ghost: #8b98a3; --accent: #0f766e; --on-accent: #ffffff;
+  --prime: #b4233c; --power: #1d5fa8; --ghost: #6b7782; --accent: #0f766e; --on-accent: #ffffff;
   --display: "Space Grotesk", "Helvetica Neue", Arial, sans-serif;
   --body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -99,7 +107,7 @@ h2 { font: 700 18px var(--display); margin: 0 0 10px; }
     <div>
       <h2>What you are hearing</h2>
       <ul class="legend">
-        <li><span class="k">Drone</span><span>One sine per zero, pitched in proportion to γ (the first zero, γ₁ = 14.1347, is E2). The zeros are not a harmonic series, so the chord is metallic.</span></li>
+        <li><span class="k">Drone</span><span>One sine per zero (the first 120; higher zeros add little to the sound), pitched in proportion to γ (the first zero, γ₁ = 14.1347, is E2). The zeros are not a harmonic series, so the chord is metallic.</span></li>
         <li><span class="k" style="color: var(--prime)">Primes</span><span>Plucked strings at the peaks that land on a prime. Pitch is that harmonic of G2 folded into one octave: 3 is a fifth, 5 a major third, 7 a harmonic seventh.</span></li>
         <li><span class="k" style="color: var(--power)">Powers</span><span>Bells at 4, 8, 9, 16, 25, 27: the smaller spikes at prime powers. Their weight is 1/k of a prime's, so they ring softer.</span></li>
         <li><span class="k" style="color: var(--muted)"><span class="dot" style="background: var(--ghost); margin-right: 6px"></span>Ghosts</span><span>Peaks that sit between integers because too few zeros are active. They play out of tune and disappear as you add zeros.</span></li>

@@ -177,7 +177,7 @@ def build_parser() -> argparse.ArgumentParser:
     v.add_argument("--fps", type=int, default=30)
     v.add_argument("--start", type=float, default=0.0, help="clip start (s)")
     v.add_argument("--end", type=float, default=None, help="clip end (s)")
-    v.add_argument("--caption", default=None, help="hook text shown over the first 4 s")
+    v.add_argument("--caption", default=None, help="opening caption shown over the first 4 s")
     v.add_argument("--end-card", action="store_true", help="title card with the site address over the last 2.5 s")
     v.add_argument("--title", default=None, help="page title (default: the score's title)")
     v.set_defaults(func=_cmd_video)

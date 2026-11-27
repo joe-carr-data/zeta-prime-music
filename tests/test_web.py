@@ -24,7 +24,7 @@ def test_web_demo_build_injects_first_200_zeros(tmp_path):
     arr = json.loads(re.search(r"const GAMMAS = (\[.*?\]);", html).group(1))
     assert len(arr) == 200
     assert abs(arr[0] - load_zeros(1)[0]) < 1e-8
-    assert "<title>Hear the Primes</title>" in html
+    assert "<title>Hear the Primes · Zeta Prime Music</title>" in html
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")

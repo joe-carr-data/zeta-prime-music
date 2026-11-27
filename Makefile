@@ -53,8 +53,8 @@ clips: render $(PROP)/B_prime_pulse.wav
 
 # Proposal J (produced radio edit): full video + five vertical clips synced to the produced master.
 # Produce it first (needs the Kontakt states, see the score), or point J_WAV at an existing master.
-J_SCORE := compositions/commercial/critical_strip_radio_kontakt.toml
-J_WAV ?= $(OUT)/commercial_j/critical_strip_radio_kontakt.wav
+J_SCORE := compositions/commercial/the_sound_of_the_primes.toml
+J_WAV ?= $(OUT)/proposals/J2/the_sound_of_the_primes.wav
 J_DIR := $(PROP)/J_video
 J_VIDEO := uv run zeta-music video $(J_SCORE) --audio $(J_WAV) --title "The Sound of the Primes" --end-card
 J_CLIP := $(J_VIDEO) --aspect 9:16

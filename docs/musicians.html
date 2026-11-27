@@ -4,7 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>For Musicians · Zeta Prime Music</title>
-<meta name="description" content="How Critical Strip is built: tuning, harmony, rhythm, dynamics and form, with the mathematics behind every note.">
+<meta name="description" content="How the music of the primes is built: tuning, harmony, rhythm, dynamics and form, with the mathematics behind every note.">
+<meta property="og:title" content="For musicians · Zeta Prime Music">
+<meta property="og:description" content="How the music of the primes is built: tuning, harmony, rhythm, dynamics and form, with the mathematics behind every note.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://joe-carr-data.github.io/zeta-prime-music/musicians.html">
+<meta property="og:image" content="https://joe-carr-data.github.io/zeta-prime-music/media/sound-of-the-primes-poster.jpg">
+<meta property="og:image:alt" content="A curve of 200 zeta zeros with sharp peaks labelled at the primes">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
@@ -19,7 +26,7 @@
   .sieve div { aspect-ratio: 1 / 1.6; border-radius: 4px; background: var(--grid); display: flex; align-items: flex-end; justify-content: center; font: 600 10px var(--mono); color: var(--soft); padding-bottom: 3px; }
   .sieve .P { background: var(--prime); color: var(--on-accent); }
   .sieve .B { background: var(--power); color: var(--on-accent); opacity: .85; }
-  @media (max-width: 640px) { .sieve div { font-size: 0; } }
+  @media (max-width: 640px) { .sieve { grid-template-columns: repeat(10, minmax(0, 1fr)); } }
   .legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; color: var(--muted); }
   .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
 </style>
@@ -207,18 +214,16 @@
     <p>Mix: drone −13 dB, plucks −5 dB, bells 4 dB under the plucks, breath −28 dB, low sine −21 dB, a 3.6 s convolution reverb at 24 % wet, soft saturation and a −1 dBFS ceiling.</p>
 
     <h2 id="radio">10 · The radio edit: <i>The Sound of the Primes</i></h2>
-    <p>The track at the top of the site takes the same mathematics and plays it with a band. Every note still comes from the explicit formula; what changes is tempo, arrangement and instruments.</p>
+    <p>The track at the top of the site takes the same mathematics and plays it with real instruments. Every note still comes from the explicit formula; what changes is tempo, tuning (equal temperament), arrangement and instruments. There is no bass line or drum part: nothing is added that the zeros did not produce.</p>
     <div class="table-wrap"><table>
       <thead><tr><th>Choice</th><th>What it is</th><th>Why</th></tr></thead>
       <tbody>
         <tr><td>Tempo and metre</td><td>112.5 BPM in 5/4</td><td>One 8-second bar of the number line is exactly three bars of 5/4, and every whole number lands on an odd sixteenth, so the primes sit on the grid.</td></tr>
-        <tr><td>Groove</td><td>Drums on the eighth notes only</td><td>Eighths fall on the half-integers, where no prime can sound: the beat never covers a prime.</td></tr>
         <tr><td>Tuning</td><td>Tempered (piano keys)</td><td>The sampled instruments play standard pitches; the exact microtonal tuning lives in the original pieces.</td></tr>
         <tr><td>Primes</td><td>Upright piano</td><td>The melody of the primes, intimate and clear</td></tr>
         <tr><td>Prime powers</td><td>Vibraphone</td><td>The "overtones" ring as metal, apart from the piano</td></tr>
         <tr><td>Zeros</td><td>A slow synth pad on the first zeros' chord</td><td>The drone of the zeros, voiced openly so no two tones clash by a semitone</td></tr>
-        <tr><td>Bass and sub</td><td>Electric bass on E, sine sub</td><td>Grounds the E minor / G major ambiguity of section 4</td></tr>
-        <tr><td>Space</td><td>Reverb, delay and bus compression</td><td>One room for the whole band</td></tr>
+        <tr><td>Space</td><td>Reverb, delay and bus compression</td><td>One room for all the voices</td></tr>
       </tbody>
     </table></div>
     <div class="table-wrap"><table>
@@ -226,16 +231,16 @@
       <tbody>
         <tr><td class="num">0:00</td><td>Intro</td><td class="num">0 → 1</td><td>the pad and the first zero</td></tr>
         <tr><td class="num">0:16</td><td>Tuning in</td><td class="num">1, 2, 3, 5, 8, 13, 34, 200</td><td>eight bars; wrong notes slide onto the primes</td></tr>
-        <tr><td class="num">1:20</td><td>Chorus</td><td class="num">500</td><td>the band locks in on the exact primes</td></tr>
+        <tr><td class="num">1:20</td><td>Chorus</td><td class="num">500</td><td>everything locks in on the exact primes</td></tr>
         <tr><td class="num">1:52</td><td>Further out</td><td class="num">500</td><td>x runs from 31.5 to 130: an accelerando through larger primes</td></tr>
         <tr><td class="num">2:16</td><td>Chorus</td><td class="num">500</td><td>back to the bar</td></tr>
         <tr><td class="num">2:32</td><td>Outro</td><td class="num">55, 13</td><td>the bar runs backwards while zeros are removed; it ends on 3, then 2</td></tr>
       </tbody>
     </table></div>
-    <p>Mastered to −14 LUFS for streaming. The MIDI and the score are public; the separate instrument stems are not distributed.</p>
+    <p>Mastered to −14 LUFS for streaming. The score is public (<code>compositions/commercial/the_sound_of_the_primes.toml</code>) and <code>zeta-music produce … --midi-only</code> writes its MIDI; the recording needs the sampled instruments, and the separate instrument stems are not distributed.</p>
 
     <h2 id="yours">11 · Make your own</h2>
-    <p><b>With your own instruments.</b> Every render writes a MIDI file. Each note carries its exact microtonal pitch as a pitch bend (±2 semitones) on its own channel while it sounds, so it works with any MPE synth. Time is in seconds (60 BPM).</p>
+    <p><b>With your own instruments.</b> Every render writes a MIDI file. Each note carries its exact microtonal pitch as a pitch bend (±2 semitones) on its own channel while it sounds, so it works with any MPE synth. Time is in seconds (60 BPM) in the original pieces; the produced track's MIDI carries its own tempo.</p>
     <p><b>Writing a score.</b> A score is a TOML file; musically its parameters mean:</p>
     <div class="table-wrap"><table>
       <thead><tr><th>Parameter</th><th>Musical meaning</th></tr></thead>
