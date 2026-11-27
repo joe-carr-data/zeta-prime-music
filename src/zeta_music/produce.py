@@ -21,10 +21,13 @@ from __future__ import annotations
 
 import functools
 import hashlib
+import importlib.metadata
+import inspect
 import itertools
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -995,7 +998,7 @@ def save_plugin_state(plugin_path: str, out: Path, plugin_name: str | None = Non
 # notes or instrument re-renders only that voice. The key is a SHA-256 of everything that
 # affects the raw audio (see :func:`render_key`). Builtin sine voices are not cached (they render
 # in milliseconds).
-CACHE_VERSION = 1  # bump when instrument rendering changes in a way the key cannot see
+CACHE_VERSION = 2  # bump when instrument rendering changes in a way the key cannot see
 DEFAULT_CACHE_DIR = Path("output/cache")
 _ENGINE_SOURCES = ("composition.py", "synth.py", "explicit.py", "zeros.py", "config.py", "data/zeros.txt")
 
@@ -1034,6 +1037,45 @@ def _engine_code_digest() -> str:
     return h.hexdigest()
 
 
+def _source_digest(*fns: Callable[..., Any]) -> str:
+    """Digest of the source of the functions that produce a voice's raw audio."""
+    return hashlib.sha256("\n".join(inspect.getsource(f) for f in fns).encode()).hexdigest()
+
+
+def _version(dist: str) -> str | None:
+    try:
+        return importlib.metadata.version(dist)
+    except importlib.metadata.PackageNotFoundError:
+        return None
+
+
+@functools.cache
+def _plugin_identity(path: str) -> dict[str, Any]:
+    """Identity of an installed plugin build: a bundle's Info.plist digest (it carries the version),
+    else the file's size and modification time. Sample libraries a plugin loads are not covered;
+    after a library update, render with ``--no-cache`` (or clear the cache)."""
+    p = Path(path)
+    plist = p / "Contents" / "Info.plist"
+    if plist.is_file():
+        return {"info_plist_sha256": _sha256_file(plist)}
+    if p.exists():
+        st = p.stat()
+        return {"size": st.st_size, "mtime_ns": st.st_mtime_ns}
+    return {}
+
+
+@functools.cache
+def _fluidsynth_version() -> str | None:
+    exe = shutil.which("fluidsynth")
+    if not exe:
+        return None
+    try:
+        out = subprocess.run([exe, "--version"], capture_output=True, text=True, timeout=10).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return out.strip().splitlines()[0] if out.strip() else None
+
+
 def render_key(
     voice: VoiceSpec,
     part: Part | None,
@@ -1058,7 +1100,8 @@ def render_key(
     if voice.kind == "engine":
         if cfg is None:
             raise ValueError("the engine voice's key needs the composition config")
-        return _digest(spec | {"config": asdict(cfg), "engine_code": _engine_code_digest()})
+        wrapper = _source_digest(_fit, _render_engine_raw)
+        return _digest(spec | {"config": asdict(cfg), "engine_code": _engine_code_digest(), "wrapper": wrapper})
     if part is None:
         raise ValueError(f"voice {voice.name!r}: no part to key")
     msgs = part_messages(part, voice, tuning, _channels_for(voice, tuning, 0))
@@ -1078,6 +1121,11 @@ def render_key(
             "params": voice.params,
             "load_wait": float(voice.load_wait),
             "preroll": PLUGIN_PREROLL,
+            "plugin_build": _plugin_identity(str(_expand(voice.target))),
+            "renderer": {
+                "pedalboard": _version("pedalboard"),
+                "code": _source_digest(render_plugin, _load_plugin, _fit, part_messages, _channels_for),
+            },
         }
     elif voice.kind == "sf2":
         if soundfont is None or tempo is None:
@@ -1088,6 +1136,10 @@ def render_key(
             "soundfont": str(soundfont),
             "soundfont_sha256": _sha256_file(soundfont),
             "tempo": [list(tempo.segments), list(tempo.meter), tempo.ppq],
+            "renderer": {
+                "fluidsynth": _fluidsynth_version(),
+                "code": _source_digest(render_sf2, fluidsynth_cmd, _fit, part_messages, _channels_for),
+            },
         }
     else:
         raise ValueError(f"voice {voice.name!r}: {voice.instrument} is not cached")
@@ -1167,14 +1219,19 @@ class RenderCache:
         _atomic_write(self.path(key).with_suffix(".json"), lambda f: f.write(text), "w")
 
 
+# only files the cache itself writes: <sha256>.npy / <sha256>.json and their temporary files
+_CACHE_FILE = re.compile(r"\.?[0-9a-f]{64}\.(npy|json)(\..+\.tmp)?")
+
+
 def clear_cache(root: Path = DEFAULT_CACHE_DIR) -> int:
-    """Delete every cache entry under ``root``; returns the number of files removed."""
+    """Delete the cache entries under ``root`` (files named by a cache key; anything else is left
+    alone, so pointing it at the wrong directory deletes nothing); returns the number removed."""
     root = Path(root)
     if not root.is_dir():
         return 0
     removed = 0
     for p in root.iterdir():
-        if p.is_file() and (p.suffix in (".npy", ".json") or p.name.endswith(".tmp")):
+        if p.is_file() and _CACHE_FILE.fullmatch(p.name):
             p.unlink()
             removed += 1
     return removed
@@ -1220,9 +1277,10 @@ def render_jobs(jobs: Sequence[RenderJob], workers: int, local: Sequence[Callabl
 
     Workers use the "spawn" start method and one job per process, so each loads its own plugin in a
     fresh process. Jobs with the most notes start first. Every job is a pure function of its inputs
-    and writes its own file, so the result never depends on the number of workers or on the order
-    of completion. The first failure stops the other workers and is raised as :class:`RenderError`
-    naming the voice.
+    and writes its own file, so for a deterministic instrument the result does not depend on the
+    number of workers or the order of completion (plugins with free-running oscillators or round-robin
+    samples differ between any two renders, cached or not). The first failure stops the other workers
+    and is raised as :class:`RenderError` naming the voice.
     """
     jobs = sorted(jobs, key=lambda j: -len(j.part.notes))
     if workers <= 1 or len(jobs) <= 1:

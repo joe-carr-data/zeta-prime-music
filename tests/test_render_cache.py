@@ -162,8 +162,37 @@ def test_atomic_save_never_leaves_partial_files(tmp_path, monkeypatch):
     p = cache.path("k")
     p.write_bytes(p.read_bytes()[:-100])
     assert not cache.has("k", N) and cache.load("k", N) is None
-    assert pm.clear_cache(cache.root) == 1 and not any(cache.root.iterdir())
+    assert pm.clear_cache(cache.root) == 0  # "k" is not a cache key: left alone
     assert pm.clear_cache(tmp_path / "absent") == 0
+
+
+def test_clear_cache_only_removes_cache_files(tmp_path: Path) -> None:
+    root = tmp_path / "out"
+    cache = RenderCache(root)
+    key = "ab" * 32
+    cache.store(key, np.zeros((N, 2)))
+    cache.describe(key, {"voices": ["just:x"]})
+    (root / f".{key}.npy.x1y2.tmp").write_bytes(b"")
+    keep = ["report.json", "mix.npy", "notes.tmp", f"{key}.wav", f"{'ab' * 31}.npy"]
+    for name in keep:
+        (root / name).write_bytes(b"keep")
+    assert pm.clear_cache(root) == 3
+    assert sorted(p.name for p in root.iterdir()) == sorted(keep)
+
+
+def test_key_tracks_plugin_build_and_renderer(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    bundle = tmp_path / "Synth.vst3" / "Contents"
+    bundle.mkdir(parents=True)
+    (bundle / "Info.plist").write_text("<string>1.0</string>")
+    voice = _voice(instrument=f"plugin:{bundle.parent}")
+    part = _part()
+    k1 = pm.render_key(voice, part, "just", SR, N)
+    (bundle / "Info.plist").write_text("<string>1.1</string>")
+    pm._plugin_identity.cache_clear()
+    k2 = pm.render_key(voice, part, "just", SR, N)
+    assert k1 != k2  # a plugin update in place re-renders
+    monkeypatch.setattr(pm, "_version", lambda dist: "999")
+    assert pm.render_key(voice, part, "just", SR, N) != k2  # so does a new pedalboard
 
 
 # ----------------------------------------------------------------------------- parallel
@@ -323,10 +352,12 @@ def test_cli_cache_and_jobs_flags(tmp_path, monkeypatch):
     assert seen["cache_dir"] == cache and seen["jobs"] == 3
     assert cli.main(["produce", "x.toml", "--no-cache"]) == 0
     assert seen["cache_dir"] is None and seen["jobs"] is None
-    RenderCache(cache).store("k", np.zeros((10, 2)))
+    key = "cd" * 32
+    RenderCache(cache).store(key, np.zeros((10, 2)))
+    (cache / "report.json").write_text("{}")  # not a cache file: both clear paths leave it
     assert cli.main(["produce", "x.toml", "--cache-dir", str(cache), "--clear-cache"]) == 0
-    assert not any(cache.iterdir())
-    RenderCache(cache).store("k", np.zeros((10, 2)))
+    assert [p.name for p in cache.iterdir()] == ["report.json"]
+    RenderCache(cache).store(key, np.zeros((10, 2)))
     assert cli.main(["clear-cache", "--cache-dir", str(cache)]) == 0
-    assert not any(cache.iterdir())
+    assert [p.name for p in cache.iterdir()] == ["report.json"]
     assert cli.main(["produce", "x.toml", "--jobs", "0"]) == 2

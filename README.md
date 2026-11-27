@@ -51,6 +51,8 @@ uv run --extra produce zeta-music produce-preset --plugin /Library/Audio/Plug-In
 instrument, plugin state and parameters), so a mix, FX or mastering change re-renders no instrument
 and a change to one voice re-renders only that voice. Plugin voices render in parallel processes
 (`--jobs N`); `--no-cache` renders everything afresh and `zeta-music clear-cache` empties the cache.
+The key includes the plugin build and renderer versions but not the sample libraries a plugin loads:
+after updating a library, render once with `--no-cache`.
 
 ## Layout
 
