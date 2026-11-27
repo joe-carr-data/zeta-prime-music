@@ -45,6 +45,8 @@ button[disabled] { opacity: 0.45; cursor: default; }
 .tally { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { font: 500 13px var(--mono); font-variant-numeric: tabular-nums; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--rule); display: inline-flex; gap: 8px; align-items: center; }
 .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.toggle { display: inline-flex; gap: 8px; align-items: center; font: 500 13px var(--body); color: var(--muted); cursor: pointer; }
+.toggle input { accent-color: var(--accent); }
 .status { font: 400 13px var(--mono); color: var(--muted); margin-left: auto; }
 
 .below { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 28px; }
@@ -81,6 +83,7 @@ h2 { font: 700 18px var(--display); margin: 0 0 10px; }
         <button id="build" type="button">Build up 1 → 200</button>
         <button id="stop" type="button" disabled>Stop</button>
       </div>
+      <label class="toggle" for="waves"><input id="waves" type="checkbox"> Show the first waves</label>
     </div>
     <div class="tally" aria-live="polite">
       <span class="chip"><span class="dot" style="background: var(--prime)"></span><span id="t-prime">–</span></span>
@@ -226,6 +229,17 @@ function draw() {
   const path = until => { g.beginPath(); let started = false; for (let i = 0; i < GRID; i++) { if (XS[i] > until) break; const px = X(XS[i]), py = Y(state.ys[i]); if (!started) { g.moveTo(px, py); started = true; } else g.lineTo(px, py); } };
   g.lineJoin = "round"; g.strokeStyle = C.ink; g.globalAlpha = state.playing ? 0.25 : 1; g.lineWidth = 1.6; path(X1); g.stroke(); g.globalAlpha = 1;
   if (head !== null) { g.lineWidth = 2; path(head); g.stroke(); g.strokeStyle = C.accent; g.lineWidth = 1.5; g.beginPath(); g.moveTo(X(head), padT - 6); g.lineTo(X(head), H - padB); g.stroke(); }
+  if (el("waves").checked) { // the individual waves cos(gamma_k ln x), as in the source video
+    const shown = Math.min(state.N, 4), C2 = cosTable();
+    for (let k = 0; k < shown; k++) {
+      g.strokeStyle = C.accent; g.globalAlpha = 0.75 - 0.15 * k; g.lineWidth = 1.2; g.beginPath();
+      for (let j = 0; j < GRID; j += 2) { const px = X(XS[j]), py = Y(0.5 + 0.35 * C2[k * GRID + j]); if (j === 0) g.moveTo(px, py); else g.lineTo(px, py); }
+      g.stroke();
+      g.fillStyle = C.accent; g.font = `11px ${css("--mono")}`; g.textAlign = "left";
+      g.fillText(`γ${k + 1} = ${GAMMAS[k].toFixed(3)}`, padL + 4 + 92 * k, padT - 10);
+    }
+    g.globalAlpha = 1; g.textAlign = "center";
+  }
   g.font = `600 12px ${css("--mono")}`;
   for (const p of state.peaks) {
     if (head !== null && p.x > head) continue;
@@ -360,7 +374,15 @@ function stop(silent) {
   if (!silent) el("status").textContent = "Stopped. Change the zeros and play again.";
   draw();
 }
+function writeHash(n) { // shareable link: #zeros-13 (plain #name only)
+  try { history.replaceState(null, "", `#zeros-${n}`); } catch (e) { /* sandboxed: ignore */ }
+}
+function readHash() {
+  const m = /^#zeros-(\d{1,3})$/.exec(location.hash);
+  return m ? Math.min(200, Math.max(1, +m[1])) : null;
+}
 function setN(n, fromUser) {
+  if (fromUser) writeHash(n);
   state.N = n; el("nz").value = n; recompute();
   if (fromUser && state.playing && session) { // retune the rest of the bar from the playhead on
     setDrone(n); cancelFuture(); scheduleFrom(state.barStart, currentX() + 0.05);
@@ -375,9 +397,12 @@ el("nz").addEventListener("input", e => { // coalesce slider input to one update
 el("play").addEventListener("click", () => play("bar"));
 el("build").addEventListener("click", () => play("build"));
 el("stop").addEventListener("click", () => stop(false));
+el("waves").addEventListener("change", draw);
+window.addEventListener("hashchange", () => { const n = readHash(); if (n && n !== state.N) setN(n, false); });
 window.addEventListener("resize", draw);
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
 new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 if (document.fonts) document.fonts.ready.then(draw);
+{ const n = readHash(); if (n) { state.N = n; el("nz").value = n; } }
 recompute();
 </script>

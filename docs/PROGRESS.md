@@ -13,7 +13,7 @@ R1. Public release (needs user decisions): LICENSE (MIT code; audio licence open
 Outreach assets (plan: (private link) — Build phase 1–20 Dec 2026):
 O2b. Clips: burn-in hook caption ("Add the zeros of ζ one by one…") + end card with repo/handle once the release name is decided.
 O5. Video: use the empty lower third in 9:16 (e.g. the zero 'chord' as bars at γ_k).
-O3b. Web demo follow-ups: tremolo per zero, a 'show waves' toggle (individual cos(γ ln x) traces), share-friendly #N hash.
+O3b. (remaining, optional) per-zero tremolo in the demo drone.
 O4. LICENSE (MIT code) once the user decides on audio licence (CC BY 4.0 recommended for clips/stems).
 review (docs/reviews/review_review3_raw.log), fix first:
 review findings (docs/reviews/review_2026-11-27_raw.log), fix in order:
@@ -55,3 +55,4 @@ review findings (docs/reviews/review_2026-11-27_raw.log), fix in order:
 - 2026-11-27 tick 17b: review (holistic): wheel verified (zeros.txt, py.typed, entry point). Fixed: Makefile builds every deliverable from a clean clone (explicit WAV rules, .PHONY incl. web, proposals target with A–E names, encode script); CI uses UV_PYTHON for the whole job, `uv sync --locked`, asserts the interpreter, installs ffmpeg + node so video/parity tests run, plus a wheel-install smoke job; MIDI title transliterated to latin-1 (ζ → zeta) instead of crashing after the WAV; literal -n 0 / explain -n 1 give clear errors; graphic score plots bells at sounding pitch; README commands copyable (uv run, real literal modes, plot extra, ffmpeg); COMPOSITION.md pole/breath rows corrected. Musical ideas → M1, release items → R1. 117 tests.
 - 2026-11-27 tick 18: M1 → proposal F 'Critical Strip (revised)' (compositions/proposals/critical_strip_revised.toml; output/proposals/F_critical_strip_revised.{wav,m4a}, 3:08): II −16 s, IV call (breath only, 0 notes) + response, V reversed — ends on 3 (148.6 Hz) → 2 (95.0 Hz). Uses the descending-sweep fix from tick 5. A untouched for comparison. Makefile + PROPOSALS.md updated.
 - 2026-11-27 tick 19: P1: oversampling capped by internal rate (384 kHz) instead of a fixed 8x, so 8–16 kHz renders reach 16–32x and hold t60 (8 kHz/1568 Hz: was 0.79 s for 2.5 s requested). 44.1 kHz behaviour unchanged (still ≤8x; shipped audio identical). Tests at 8k/16k.
+- 2026-11-27 tick 20: O3b: demo gets 'Show the first waves' (first ≤4 cos(γ_k ln x) traces drawn above the sum, labelled γ1…γ4 — the video's explanation, live) and a shareable #zeros-N link (plain #name per artifact rules; read on load + hashchange). Republished v3. 120 tests.
