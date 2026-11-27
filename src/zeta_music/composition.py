@@ -45,6 +45,7 @@ __all__ = [
     "analyse",
     "build_timeline",
     "detect_events",
+    "mix_notes",
     "render",
     "salience_curve",
 ]
@@ -368,6 +369,17 @@ def _render_notes(
     return plucks, bells
 
 
+def mix_notes(plucks: FloatArray, bells: FloatArray, pluck_db: float, bell_db: float) -> FloatArray:
+    """Note voices are NOT peak-normalised: every note already has unit peak x salience, so a
+    unit-salience pluck lands at ``pluck_db`` and a unit-salience bell at ``bell_db`` (prime powers
+    keep their 1/k level). ``-inf`` dB mutes a voice cleanly (no inf/NaN arithmetic)."""
+    out = np.zeros_like(plucks)
+    for stem, db in ((plucks, pluck_db), (bells, bell_db)):
+        if np.isfinite(db):
+            out += synth.db_to_amp(db) * stem
+    return out
+
+
 def _render_breath(cfg: CompositionConfig, tl: Timeline, sal: FloatArray, n_audio: int) -> FloatArray:
     sr = cfg.sample_rate
     rng = np.random.default_rng(cfg.seed + 3)
@@ -402,7 +414,7 @@ def _audible(cfg: CompositionConfig, tl: Timeline, time: float) -> bool:
     configured section gain gates that pre-ring away.
     """
     j = min(int(time * tl.rate), tl.t.size - 1)
-    return cfg.sections[int(tl.section[j])].pluck_gain > 0.02 and tl.pluck_gain[j] > 0.02
+    return cfg.sections[int(tl.section[j])].pluck_gain > 0.0 and tl.pluck_gain[j] > 0.02
 
 
 def analyse(cfg: CompositionConfig) -> tuple[FloatArray, Timeline, FloatArray, list[Event]]:
@@ -438,9 +450,7 @@ def render(cfg: CompositionConfig) -> RenderResult:
 
     mix = (
         synth.db_to_amp(m.drone_db) * norm(drone)
-        # plucks and bells share ONE gain so salience (1 at primes, 1/k at p^k) survives the mix;
-        # bell_db is applied relative to pluck_db
-        + synth.db_to_amp(m.pluck_db) * norm(plucks + synth.db_to_amp(m.bell_db - m.pluck_db) * bells)
+        + mix_notes(plucks, bells, m.pluck_db, m.bell_db)
         + synth.db_to_amp(m.breath_db) * norm(breath)
         + synth.db_to_amp(m.pole_db) * norm(pole)
     )

@@ -55,10 +55,11 @@ def _ffmpeg_cmd(w: int, h: int, fps: int, audio: Path, start: float, dur: float,
     return [
         "ffmpeg", "-v", "error", "-y",
         "-f", "rawvideo", "-pix_fmt", "rgba", "-s", f"{w}x{h}", "-r", str(fps), "-i", "-",
-        "-ss", f"{start:.3f}", "-t", f"{dur:.3f}", "-i", str(audio),
+        "-ss", f"{start:.6f}", "-t", f"{dur:.6f}", "-i", str(audio),
         "-map", "0:v", "-map", "1:a",
         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", str(crf), "-preset", "medium",
-        "-c:a", "aac", "-b:a", "256k", "-t", f"{dur:.3f}", "-movflags", "+faststart", str(out),
+        # no output-side -t: the frames we send define the video length (a partial last frame is kept)
+        "-c:a", "aac", "-b:a", "256k", "-movflags", "+faststart", str(out),
     ]  # fmt: skip
 
 

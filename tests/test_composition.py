@@ -176,3 +176,31 @@ def test_decimal_loops_wrap_exactly_at_segment_boundaries(loop):
     # within every bar x is monotonic
     for a, b in zip([0, *seg_changes], [*seg_changes, tl.x.size], strict=True):
         assert np.all(np.diff(tl.x[a:b]) > 0)
+
+
+def test_mix_notes_keeps_salience_and_mutes_cleanly():
+    """Regression : stem normalisation at the mix stage erased 1/k; -inf dB made NaNs."""
+    from zeta_music.composition import mix_notes
+
+    plucks = np.zeros((100, 2))
+    bells = np.zeros((100, 2))
+    plucks[10] = 1.0  # a unit-salience prime
+    bells[50] = 0.5  # a p^2 bell, salience 1/2
+    out = mix_notes(plucks, bells, pluck_db=-6.0, bell_db=-6.0)
+    assert out[50, 0] / out[10, 0] == pytest.approx(0.5)  # 1/k survives the mix
+    bell_only = mix_notes(np.zeros_like(plucks), bells, pluck_db=-6.0, bell_db=-12.0)
+    assert np.max(np.abs(bell_only)) == pytest.approx(0.5 * 10 ** (-12 / 20))  # bell_db honoured, not re-normalised
+    muted = mix_notes(plucks, bells, pluck_db=float("-inf"), bell_db=-6.0)
+    assert np.all(np.isfinite(muted)) and muted[10, 0] == 0.0
+
+
+def test_quiet_section_is_not_muted():
+    """Regression : pluck_gain=0.01 was treated as muted."""
+    from zeta_music.composition import analyse
+    from zeta_music.config import CompositionConfig, Section
+
+    cfg = CompositionConfig(
+        title="quiet", sample_rate=8000, control_rate=1000,
+        sections=[Section("quiet", 2.0, 1.5, 31.5, 50, 50, pluck_gain=0.05)],
+    )  # fmt: skip
+    assert analyse(cfg)[3], "a quiet (not muted) section must still produce events"

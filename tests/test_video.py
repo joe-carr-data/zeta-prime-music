@@ -46,14 +46,16 @@ def _probe(path):
 
 
 @needs_ffmpeg
-@pytest.mark.parametrize(("start", "end", "frames"), [(4.0, 5.0, 5), (4.0, 4.1, 1), (4.0, 5.3, 7)])
+@pytest.mark.parametrize(
+    ("start", "end", "frames"), [(4.0, 5.0, 5), (4.0, 4.1, 1), (4.0, 5.3, 7), (4.0, 5.201, 7), (4.0, 4.0001, 1)]
+)
 def test_render_video_streams_and_frames(tiny_config, tiny_wav, tmp_path, start, end, frames):
     out = render_video(tiny_config, tiny_wav, tmp_path / "v.mp4", VideoSpec(aspect="9:16", fps=5, start=start, end=end))
     info = _probe(out)
     kinds = {s["codec_type"]: s for s in info["streams"]}
     assert set(kinds) == {"video", "audio"}
     assert int(kinds["video"]["nb_read_frames"]) == frames
-    assert float(info["format"]["duration"]) == pytest.approx(max(end - start, 0.2), abs=0.15)
+    assert float(info["format"]["duration"]) == pytest.approx(frames / 5, abs=0.15)
 
 
 @needs_ffmpeg
