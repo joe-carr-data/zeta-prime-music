@@ -38,7 +38,16 @@ from .config import CompositionConfig, Section
 from .explicit import von_mangoldt
 from .zeros import load_zeros
 
-__all__ = ["Event", "RenderResult", "Timeline", "build_timeline", "detect_events", "render", "salience_curve"]
+__all__ = [
+    "Event",
+    "RenderResult",
+    "Timeline",
+    "analyse",
+    "build_timeline",
+    "detect_events",
+    "render",
+    "salience_curve",
+]
 
 log = logging.getLogger(__name__)
 FloatArray = NDArray[np.float64]
@@ -368,15 +377,21 @@ def _fades(n: int, sr: int, fade_in: float = 3.0, fade_out: float = 8.0) -> Floa
     return env
 
 
-def render(cfg: CompositionConfig) -> RenderResult:
-    """Render the full piece described by ``cfg`` (deterministic for a given seed)."""
-    sr = cfg.sample_rate
+def analyse(cfg: CompositionConfig) -> tuple[FloatArray, Timeline, FloatArray, list[Event]]:
+    """Everything except audio: zeros, timeline, salience curve and the audible note events."""
     gammas = load_zeros(max(cfg.max_zeros, 1))
     tl = build_timeline(cfg)
     log.info("timeline: %.1fs, %d control frames, up to %d zeros", cfg.duration, tl.t.size, gammas.size)
     sal = salience_curve(tl.x, tl.n_zeros, gammas, cfg.taper)
     events = [e for e in detect_events(tl, sal, cfg) if tl.pluck_gain[min(int(e.time * tl.rate), tl.t.size - 1)] > 0.02]
     log.info("events: %d", len(events))
+    return gammas, tl, sal, events
+
+
+def render(cfg: CompositionConfig) -> RenderResult:
+    """Render the full piece described by ``cfg`` (deterministic for a given seed)."""
+    sr = cfg.sample_rate
+    gammas, tl, sal, events = analyse(cfg)
 
     tail = 4.0  # let the reverb and the last notes ring
     n_audio = int((cfg.duration + tail) * sr)

@@ -53,6 +53,16 @@ def _cmd_explain(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_video(args: argparse.Namespace) -> int:
+    from .config import load_config
+    from .video import VideoSpec, render_video
+
+    cfg = load_config(args.config)
+    spec = VideoSpec(aspect=args.aspect, fps=args.fps, start=args.start, end=args.end)
+    print(render_video(cfg, Path(args.audio), Path(args.out), spec))
+    return 0
+
+
 def _cmd_zeros(args: argparse.Namespace) -> int:
     from .zeros import load_zeros
 
@@ -90,6 +100,16 @@ def build_parser() -> argparse.ArgumentParser:
     e.add_argument("--xmax", type=float, default=30.0)
     e.set_defaults(func=_cmd_explain)
 
+    v = sub.add_parser("video", help="visualiser video synced to a rendered WAV (needs matplotlib + ffmpeg)")
+    v.add_argument("config", help="the composition TOML the audio was rendered from")
+    v.add_argument("--audio", required=True, help="rendered WAV")
+    v.add_argument("-o", "--out", default="output/video.mp4")
+    v.add_argument("--aspect", choices=["16:9", "9:16", "1:1"], default="16:9")
+    v.add_argument("--fps", type=int, default=30)
+    v.add_argument("--start", type=float, default=0.0, help="clip start (s)")
+    v.add_argument("--end", type=float, default=None, help="clip end (s)")
+    v.set_defaults(func=_cmd_video)
+
     z = sub.add_parser("zeros", help="print the first n nontrivial zeros")
     z.add_argument("n", type=int, nargs="?", default=10)
     z.set_defaults(func=_cmd_zeros)
@@ -101,7 +121,7 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING, format="%(levelname)s %(message)s")
     try:
         return int(args.func(args))
-    except (ValueError, FileNotFoundError) as exc:
+    except (ValueError, FileNotFoundError, RuntimeError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 

@@ -8,8 +8,8 @@ This file drives the autonomous 5-minute improvement loop. Keep the backlog rank
 
 ## Backlog (highest value first)
 Outreach assets (plan: (private link) — Build phase 1–20 Dec 2026):
-O1. Visualiser video: animated ψ'_N(x) spikes + zero count synced to audio, 16:9 and 9:16 (matplotlib/ffmpeg), `zeta-music video`.
-O2. Five 30–60 s vertical clips cut from A/B (the bar snapping into tune is the hook), captions burned in.
+O2b. Clips: burn-in hook caption ("Add the zeros of ζ one by one…") + end card with repo/handle once the release name is decided.
+O5. Video: use the empty lower third in 9:16 (e.g. the zero 'chord' as bars at γ_k).
 O3. Interactive web demo: slider adds zeros, Web Audio plays the bar (static page, no backend).
 O4. LICENSE (MIT code) once the user decides on audio licence (CC BY 4.0 recommended for clips/stems).
 review findings (docs/reviews/review_2026-11-27_raw.log), fix in order:
@@ -38,3 +38,4 @@ C5. Document fixed-n Landau limit; window in ordinate space; test far-end salien
 - 2026-11-27 tick 2: fixed review C1: salience uses only the zeros' oscillatory term, I_w floored at one zero, taper width floored at N=1 (previously the gauss taper zeroed the fading-in first zero). Intro breath layer now fades in with the first zero. Regression test added (44 tests).
 - 2026-11-27 tick 3: fixed review C4 (spike_density layout bug: flat C buffer + reshape; chunk>0 validated). review requested on ticks 1–3.
 - 2026-11-27 tick 3b: acted on review (docs/reviews/review_review2_raw.log): salience floor = one *tapered* zero (first bar no longer attenuated, N=1 full scale for all tapers); pan regression test; negative-stride + chunk=-1 tests; COMPOSITION.md pitch formula updated.
+- 2026-11-27 tick 4: O1+O2 done: `zeta-music video` (matplotlib→ffmpeg pipe, 16:9/9:16/1:1, --start/--end) + `make video clips`. Full 16:9 video (3:32, 11 MB) and 5 vertical clips (36–60 s). analyse() split out of render(). 55 tests.
