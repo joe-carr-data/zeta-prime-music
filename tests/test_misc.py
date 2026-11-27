@@ -188,7 +188,7 @@ def test_oversampling_factor_is_monotonic_in_pitch():
     """review: the factor used to flicker between neighbouring pitches (timbre jumps)."""
     factors = [synth.oversampling_factor(f, 44100, 2.8) for f in np.arange(100.0, 2500.0, 0.5)]
     assert factors == sorted(factors)
-    assert set(factors) == {1, 2, 4, 8}
+    assert set(factors) == {1, 2, 4, 8}  # 44.1 kHz never exceeds 8x (384 kHz cap)
 
 
 def test_non_latin_title_exports_midi(tiny_config, tmp_path):
@@ -210,3 +210,10 @@ def test_small_zero_counts_give_clear_errors():
         literal("log", n_zeros=0, duration=0.1, sr=8000)
     with pytest.raises(ValueError, match="at least 2 zeros"):
         plot_explainer(None, n_zeros=1)
+
+
+@pytest.mark.parametrize(("sr", "freq"), [(8000, 1568.0), (8000, 784.0), (16000, 1568.0)])
+def test_pluck_decay_at_low_sample_rates(sr, freq):
+    """review (P1): at 8 kHz the old 8x cap gave t60 = 0.79 s for a 2.5 s request at 1568 Hz."""
+    y = synth.pluck(freq, 3.0, sr, np.random.default_rng(1), t60=2.5)
+    assert _fundamental_t60(y, freq, sr) == pytest.approx(2.5, rel=0.1)

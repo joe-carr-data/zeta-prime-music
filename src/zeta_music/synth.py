@@ -64,14 +64,18 @@ def _ks_loop(freq: float, sr: int, t60: float) -> tuple[int, float, float]:
 MAX_LOOP_GAIN = 0.9999  # |H| <= 1 with equality at DC, so g < 1 keeps every frequency stable
 
 
+MAX_INTERNAL_RATE = 384_000  # Hz: cap on the oversampled string rate (bounds CPU per note)
+
+
 def oversampling_factor(freq: float, sr: int, t60: float) -> int:
-    """Smallest of 1/2/4/8 at which the loop can hold ``t60`` for ANY fractional delay.
+    """Smallest power of two (internal rate <= 384 kHz) at which the loop can hold ``t60``
+    for ANY fractional delay; beyond that cap the decay is the best achievable.
 
     Uses the worst case f = 0.5 (|H| = cos^2(w/2), the strongest loss), so the factor rises
     monotonically with pitch instead of flickering between neighbouring notes.
     """
     over = 1
-    while over < 8:
+    while sr * over < MAX_INTERNAL_RATE:  # 8x at 44.1/48 kHz; up to 32x at 8-12 kHz
         w0 = 2.0 * np.pi * freq / (sr * over)
         if 10.0 ** (-3.0 / (t60 * freq)) / np.cos(w0 / 2) ** 2 <= MAX_LOOP_GAIN:
             break
@@ -95,8 +99,9 @@ def pluck(
     time (vectorised).
 
     High notes lose more to the loop filter per period than a stable gain can restore, so they
-    are synthesised at 2x/4x/8x the sample rate (the per-period loss falls ~ with the square of
-    the factor) and decimated. Notes that do not need it are bit-identical to plain KS.
+    are synthesised at 2x/4x/8x... the sample rate (internal rate capped at 384 kHz; the
+    per-period loss falls ~ with the square of the factor) and decimated. Notes that do not
+    need it are bit-identical to plain KS.
 
     Trade-off (measured, documented): with a 3-tap loop filter the harmonics' decay relative to
     the fundamental is fixed by the filter shape, so holding t60 at high pitch necessarily damps
