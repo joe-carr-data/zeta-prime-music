@@ -225,7 +225,7 @@ There is no bass line or drum part: nothing is added that the zeros did not prod
 | Time | Section | Zeros | What happens |
 |---|---|---|---|
 | 0:00 | Intro | 0 → 1 | the pad and the first zero |
-| 0:16 | Tuning in | 1, 2, 3, 5, 8, 13, 34, 200 | eight bars; wrong notes slide onto the primes |
+| 0:16 | Tuning in | 1, 2, 3, 5, 8, 13, 34, 200 | eight bars; wrong notes give way to the primes |
 | 1:20 | Chorus | 500 | everything locks in on the primes |
 | 1:52 | Further out | 500 | x runs from 31.5 to 130: an accelerando through larger primes |
 | 2:16 | Chorus | 500 | back to the bar |
@@ -266,9 +266,9 @@ individual waves drawn under their sum.
 
 ## 10. Glossary
 
-- **Zero (of ζ)** — a complex number ρ where the zeta function vanishes. The nontrivial zeros are
-  written ρ = ½ + iγ; γ is the "frequency". The Riemann Hypothesis says every nontrivial zero has
-  real part ½.
+- **Zero (of ζ)** — a complex number ρ where the zeta function vanishes. A nontrivial zero is written
+  ρ = β + iγ; γ is its "frequency". The Riemann Hypothesis says β = ½ for every one of them, and the
+  zeros used here are known to satisfy it.
 - **Explicit formula** — the identity writing the primes as a sum of one wave per zero.
 - **Prime power** — p^k (4, 8, 9, 25, 27 …). Their spikes are 1/k as tall as a prime's.
 - **Salience** — the normalised spike height used as loudness (1 at primes, 1/k at p^k).

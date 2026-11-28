@@ -40,4 +40,4 @@ The plot is the (formal) derivative of von Mangoldt's explicit formula
 
 `zeta-music explain` regenerates the video's panels (single-zero waves, 200-zero sum with spikes
 and prime-power "overtones", ψ(x) recovered). Unit tests assert that 200 zeros put the peaks of
-ψ'_N on exactly the 16 prime powers ≤ 30.
+ψ'_N within 0.05 of each of the 16 prime powers ≤ 30.

@@ -37,7 +37,7 @@ PASS_200 = (72.0, 80.0)
 #   (the opening caption from `zeta-music video --caption` covers 0-4 s)
 VERTICAL_CAPTIONS = [
     (4.3, 7.8, "Watch where the piano notes land.", "2 zeros: only a few hit primes."),
-    (32.3, 39.8, "13 zeros:", "the primes start to appear."),
+    (32.3, 39.8, "13 zeros:", "more primes come into focus."),
     (48.2, 55.8, "200 zeros: 7 gets the piano,", "9 = 3² gets the vibraphone."),
 ]
 
@@ -74,9 +74,21 @@ def caption(w: int, h: int, line1: str, line2: str) -> Image.Image:
 
 def _size(video: Path) -> tuple[int, int]:
     out = subprocess.run(
-        ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0",
-         str(video)],
-        capture_output=True, text=True, check=True,
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=width,height",
+            "-of",
+            "csv=p=0",
+            str(video),
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout.strip()
     w, h = out.split(",")
     return int(w), int(h)
@@ -86,8 +98,22 @@ def _run(cmd: list[str]) -> None:
     subprocess.run(["ffmpeg", "-v", "error", "-y", *cmd], check=True)
 
 
-ENCODE = ["-c:v", "libx264", "-preset", "slow", "-crf", "26", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k",
-          "-movflags", "+faststart"]
+ENCODE = [
+    "-c:v",
+    "libx264",
+    "-preset",
+    "slow",
+    "-crf",
+    "26",
+    "-pix_fmt",
+    "yuv420p",
+    "-c:a",
+    "aac",
+    "-b:a",
+    "160k",
+    "-movflags",
+    "+faststart",
+]
 
 
 def comparison(full: Path, out: Path, tmp: Path) -> Path:
@@ -105,8 +131,30 @@ def comparison(full: Path, out: Path, tmp: Path) -> Path:
         "[v1][1:v]overlay=shortest=1[v1b];[v2][2:v]overlay=shortest=1[v2b];"
         "[v1b][a1][v2b][a2]concat=n=2:v=1:a=1[v][a]"
     )
-    _run(["-i", str(full), "-loop", "1", "-i", str(b1), "-loop", "1", "-i", str(b2), "-filter_complex", graph,
-          "-map", "[v]", "-map", "[a]", "-t", str((a1 - a0) + (c1 - c0)), *ENCODE, str(out)])
+    _run(
+        [
+            "-i",
+            str(full),
+            "-loop",
+            "1",
+            "-i",
+            str(b1),
+            "-loop",
+            "1",
+            "-i",
+            str(b2),
+            "-filter_complex",
+            graph,
+            "-map",
+            "[v]",
+            "-map",
+            "[a]",
+            "-t",
+            str((a1 - a0) + (c1 - c0)),
+            *ENCODE,
+            str(out),
+        ]
+    )
     _run(["-ss", "12", "-i", str(out), "-frames:v", "1", "-q:v", "4", str(out.with_name(out.stem + "-poster.jpg"))])
     return out
 

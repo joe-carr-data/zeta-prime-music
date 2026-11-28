@@ -76,7 +76,7 @@ $(J_DIR)/J_4_outro.mp4: $(J_SCORE) $(J_WAV)
 	$(J_CLIP) --start 136 --end 176 --caption "Take the zeros away and the primes dissolve into 3 … 2" -o $@
 $(J_DIR)/J_6_the_story.mp4: $(J_SCORE) $(J_WAV)
 	@mkdir -p $(J_DIR)
-	$(J_CLIP) --start 24 --end 88 --caption "Add the zeros of ζ one by one: wrong notes lock onto the primes" -o $@
+	$(J_CLIP) --start 24 --end 88 --caption "Add more and more zeros of ζ: wrong notes give way to the primes" -o $@
 
 video-j: $(addprefix $(J_DIR)/,J_full.mp4 J_1_tuning_in.mp4 J_2_chorus.mp4 J_3_further_out.mp4 J_4_outro.mp4 J_6_the_story.mp4)
 
