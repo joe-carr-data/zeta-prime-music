@@ -41,15 +41,16 @@
       <p class="lede">2, 3, 5, 7, 11, 13… The primes look random: no simple rule tells you where the next one falls. But in 1859 Bernhard Riemann found that they are governed by a hidden set of numbers, the zeros of the zeta function, and that <b>each zero is a wave.</b></p>
       <p class="lede">Play those waves together and something uncanny happens: <b>wrong notes drift and wobble, then lock onto the primes, one by one, until the whole number line is in tune.</b></p>
       <div class="cta">
-        <a class="btn primary" href="#listen">▶ Hear the primes</a>
+        <a class="btn primary" id="play-compare" href="#compare">▶ Hear 2 zeros, then 200 · 16 s</a>
+        <a class="btn" href="#listen">Hear the whole piece · 2:56</a>
         <a class="btn" href="demo.html">Play with the zeros yourself</a>
       </div>
       <p class="fine">No note was placed by hand. The peaks of the explicit formula decide which piano and vibraphone notes sound, when, and how strongly, and the pad plays the zeros themselves. We only designed the rules that turn them into sound (the instruments, key, tempo, form and mix), then let the zeros play. <a href="musicians.html">How it's made →</a></p>
     </div>
-    <div class="hero-media">
-      <video id="hero-video" width="960" height="480" autoplay muted loop playsinline poster="media/hero-poster.jpg" aria-label="Animation: as the number of zeta zeros grows from 1 to 200, a wavy curve sharpens into spikes at the primes 2, 3, 5, 7, 11, 13 and so on, with smaller spikes at prime powers."><source src="media/hero.mp4" type="video/mp4"></video>
-      <button id="hero-toggle" class="btn" type="button" style="margin:10px; font-size:13px; padding:6px 12px">Pause animation</button>
-    </div>
+    <figure class="hero-media" id="compare" style="margin:0">
+      <video id="compare-video" width="1280" height="720" controls playsinline preload="metadata" poster="media/compare-2-200-poster.jpg" src="media/compare-2-200.mp4" aria-label="The same eight-second bar of the number line played twice: first with 2 zeros, where the curve is broad waves and few notes land on primes, then with 200 zeros, where sharp peaks stand on the primes 2, 3, 5, 7, 11, 13, 17, 19, 23 and smaller ones on 4, 8, 9, 25, 27."></video>
+      <figcaption class="meta" style="padding:10px 14px; color: var(--night-muted)">What do 198 more zeros do to a melody? The same bar of the number line, the same instruments, played twice: first with 2 zeros, then with 200.</figcaption>
+    </figure>
   </div>
 </div>
 
@@ -98,8 +99,15 @@
           <figcaption class="meta" style="padding:10px 14px">The whole track, visualised: the curve of the zeros sharpens into spikes at the primes, every melody note labelled as it is struck.</figcaption>
         </figure>
         <figure class="card" style="padding:0; overflow:hidden; margin:0">
-          <video controls preload="none" playsinline poster="media/sound-of-the-primes-60s-poster.jpg" src="media/sound-of-the-primes-60s.mp4" style="width:100%" aria-label="One-minute clip: zeros 2 to 500"></video>
-          <figcaption class="meta" style="padding:10px 14px">One minute, one story: 2, 3, 5, 8, 13, 34, 200 zeros, then everything locks in at 500. Free to share with a credit.</figcaption>
+          <video controls preload="none" playsinline poster="media/sound-of-the-primes-60s-poster.jpg" src="media/sound-of-the-primes-60s.mp4" style="width:100%" aria-label="Vertical clip, 1 minute 4 seconds: zeros 2 to 500, with captions"></video>
+          <figcaption class="meta" style="padding:10px 14px">The story in 1:04, vertical, with captions: 2, 3, 5, 8, 13, 34, 200 zeros, then everything locks in at 500. Free to post, with a credit.</figcaption>
+          <div style="padding:0 14px 14px">
+            <div class="cta" style="margin:4px 0 10px">
+              <a class="btn primary" href="media/sound-of-the-primes-60s.mp4" download="the-sound-of-the-primes-vertical.mp4">Download vertical video · 1:04</a>
+              <button class="btn" id="copy-credit" type="button">Copy credit</button>
+            </div>
+            <p class="meta" id="credit-text" style="margin:0">“The Sound of the Primes”, from Zeta Prime Music by Joe Carr · https://github.com/joe-carr-data/zeta-prime-music · CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Please say if you edited it.</p>
+          </div>
         </figure>
       </div>
     </div>
@@ -209,11 +217,21 @@ function draw() {
 }
 draw();
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
-// hero animation: honour reduced motion, and let anyone pause it
-const hv = document.getElementById("hero-video"), ht = document.getElementById("hero-toggle");
-function setPlaying(on) { if (on) { hv.play().catch(() => {}); } else { hv.pause(); } ht.textContent = on ? "Pause animation" : "Play animation"; }
-if (matchMedia("(prefers-reduced-motion: reduce)").matches) setPlaying(false);
-ht.addEventListener("click", () => setPlaying(hv.paused));
+// the 16-second comparison: the main button plays it from the start, with sound
+const cv = document.getElementById("compare-video");
+document.getElementById("play-compare").addEventListener("click", (e) => {
+  e.preventDefault();
+  cv.muted = false; cv.currentTime = 0; cv.play().catch(() => {});
+  if (cv.getBoundingClientRect().top > innerHeight * 0.6) cv.scrollIntoView({ behavior: "smooth", block: "center" });
+});
+// copy the credit line for the vertical clip
+const cb = document.getElementById("copy-credit");
+if (cb) cb.addEventListener("click", async () => {
+  const text = document.getElementById("credit-text").innerText;
+  try { await navigator.clipboard.writeText(text); cb.textContent = "Copied ✓"; }
+  catch { getSelection().selectAllChildren(document.getElementById("credit-text")); cb.textContent = "Selected: press Ctrl/Cmd+C"; }
+  setTimeout(() => { cb.textContent = "Copy credit"; }, 2500);
+});
 </script>
 </body>
 </html>
